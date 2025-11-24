@@ -1,0 +1,52 @@
+# ===================================================================
+# .gitignore for Internet Health Monitor
+# ===================================================================
+
+# Exported Reports
+InternetHealthReport_*.txt
+*Report*.txt
+
+# Windows System Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# PowerShell
+*.ps1~
+*.log
+
+# Config overrides (keep config.json template, but ignore user customizations)
+config.user.json
+config.local.json
+
+# Temporary files
+*.tmp
+*.temp
+~$*
+
+# IDE / Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Build artifacts (if converting to .exe)
+*.exe.config
+build/
+dist/
+
+# Test files
+test_*.ps1
+debug_*.txt
+
+# Screenshots (uncomment if you don't want to track them)
+# screenshots/*.png
+# screenshots/*.jpg
+

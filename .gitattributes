@@ -1,0 +1,28 @@
+# ===================================================================
+# Git Attributes for Internet Health Monitor
+# ===================================================================
+# This file ensures consistent line endings across different platforms
+
+# Auto detect text files and normalize line endings to LF in the repository
+* text=auto
+
+# PowerShell scripts should use CRLF on Windows (Windows standard)
+*.ps1 text eol=crlf
+*.psm1 text eol=crlf
+*.psd1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Markdown, JSON, and text files can use LF
+*.md text eol=lf
+*.json text eol=lf
+*.txt text eol=lf
+
+# Explicitly declare files that should not be normalized
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.exe binary
+

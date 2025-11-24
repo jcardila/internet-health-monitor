@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "description": "Configuration file for Internet Health Monitor. Edit these values to customize the application behavior.",
+  
+  "monitoring": {
+    "sampleWindow": 30,
+    "pingIntervalMs": 1500,
+    "pingTimeoutMs": 1200,
+    "comment": "sampleWindow: Number of recent samples to keep. pingIntervalMs: How often to ping (milliseconds). pingTimeoutMs: Timeout for each ping."
+  },
+  
+  "thresholds": {
+    "router": {
+      "highLatencyMs": 30,
+      "comment": "Latency above this value (ms) is considered 'loss' for router pings"
+    },
+    "internet": {
+      "highLatencyMs": 150,
+      "comment": "Latency above this value (ms) is considered 'loss' for internet pings"
+    }
+  },
+  
+  "targets": {
+    "internet": ["8.8.8.8", "8.8.4.4"],
+    "comment": "DNS servers to test internet connectivity. Options: Google DNS (8.8.8.8, 8.8.4.4), Cloudflare (1.1.1.1, 1.0.0.1), OpenDNS (208.67.222.222, 208.67.220.220), Quad9 (9.9.9.9, 149.112.112.112)"
+  },
+  
+  "ui": {
+    "windowTitle": "Internet Health Monitor",
+    "logMaxLines": 500,
+    "logAllPings": true,
+    "comment": "logAllPings: true = log every ping, false = log only problems"
+  },
+  
+  "advanced": {
+    "autoDetectGateway": true,
+    "fallbackGateway": "192.168.1.1",
+    "comment": "If autoDetectGateway fails, fallbackGateway will be used"
+  }
+}
+
