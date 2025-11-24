@@ -1,11 +1,17 @@
 # ===================================================================
 # Internet Health Monitor - Friendly GUI (PowerShell + WPF)
 # ===================================================================
-# Version: 1.0.0
+# Version: 1.0.0  # Update this when creating a new release
 # Author: jcardila
 # Repository: https://github.com/jcardila/internet-health-monitor
 # Last Updated: November 24, 2025
 # License: MIT
+#
+# VERSION INFO:
+#   - This version number is the canonical version for releases
+#   - Update only when creating a new release (git tag)
+#   - Format: MAJOR.MINOR.PATCH (Semantic Versioning)
+#   - See VERSIONING.md for release process
 #
 # TESTED ON:
 #   - Windows 11 (Build 26100)
@@ -49,6 +55,7 @@ $WindowTitle = "Internet Health Monitor"
 $LogMaxLines = 500     # cap the log length
 $LogAllPings = $true   # set to $true to log every ping (for debugging)
 $FallbackGateway = "192.168.1.1"  # fallback if auto-detection fails
+$CheckUpdatesOnStartup = $true  # check for updates when app starts
 
 # Try to load config.json if it exists
 $configPath = Join-Path $PSScriptRoot "config.json"
@@ -71,6 +78,7 @@ if (Test-Path $configPath) {
         if ($null -ne $config.ui.logAllPings) { $LogAllPings = $config.ui.logAllPings }
         
         if ($config.advanced.fallbackGateway) { $FallbackGateway = $config.advanced.fallbackGateway }
+        if ($null -ne $config.advanced.checkUpdatesOnStartup) { $CheckUpdatesOnStartup = $config.advanced.checkUpdatesOnStartup }
         
         Write-Host "Configuration loaded from config.json" -ForegroundColor Green
     }
@@ -79,6 +87,115 @@ if (Test-Path $configPath) {
         Write-Host "Error: $_" -ForegroundColor Gray
     }
 }
+
+# --------------------------------------------------------------
+
+# Get application version (try Git first, fallback to hardcoded)
+function Get-AppVersion {
+    # Try to get version from Git tag (if in a git repo)
+    try {
+        $gitVersion = git describe --tags --abbrev=0 2>$null
+        if ($gitVersion -and $gitVersion -match '^v?(\d+\.\d+\.\d+)') {
+            return $matches[1]
+        }
+    }
+    catch {
+        # Git not available or not in a repo
+    }
+    
+    # Fallback: Extract from script header
+    $scriptPath = $PSCommandPath
+    if ($scriptPath) {
+        $content = Get-Content $scriptPath -Raw
+        if ($content -match '# Version: ([\d\.]+)') {
+            return $matches[1]
+        }
+    }
+    
+    # Ultimate fallback
+    return "1.0.0"
+}
+
+$script:AppVersion = Get-AppVersion
+
+# Function to check for updates (non-blocking)
+function Test-UpdateAvailable {
+    param(
+        [string]$CurrentVersion,
+        [switch]$ShowUI
+    )
+    
+    try {
+        # GitHub API endpoint for latest release
+        $repoOwner = "jcardila"
+        $repoName = "internet-health-monitor"
+        $apiUrl = "https://api.github.com/repos/$repoOwner/$repoName/releases/latest"
+        
+        # Make request with timeout
+        $response = Invoke-RestMethod -Uri $apiUrl -TimeoutSec 5 -ErrorAction Stop
+        
+        # Extract version from tag (remove 'v' prefix if present)
+        $latestVersion = $response.tag_name -replace '^v', ''
+        $downloadUrl = $response.html_url
+        
+        # Compare versions
+        if ($latestVersion -ne $CurrentVersion) {
+            # Parse versions for comparison (simple string comparison works for semantic versioning)
+            $current = [version]$CurrentVersion
+            $latest = [version]$latestVersion
+            
+            if ($latest -gt $current) {
+                $updateInfo = @{
+                    Available      = $true
+                    CurrentVersion = $CurrentVersion
+                    LatestVersion  = $latestVersion
+                    DownloadUrl    = $downloadUrl
+                    ReleaseNotes   = $response.body
+                }
+                
+                if ($ShowUI) {
+                    Show-UpdateNotification -UpdateInfo $updateInfo
+                }
+                
+                return $updateInfo
+            }
+        }
+        
+        return @{ Available = $false }
+    }
+    catch {
+        # Silently fail - don't interrupt the app if update check fails
+        Write-Verbose "Update check failed: $_"
+        return @{ Available = $false; Error = $_.Exception.Message }
+    }
+}
+
+# Function to show update notification
+function Show-UpdateNotification {
+    param($UpdateInfo)
+    
+    $message = @"
+Una nueva versión está disponible!
+
+Versión actual: v$($UpdateInfo.CurrentVersion)
+Versión disponible: v$($UpdateInfo.LatestVersion)
+
+¿Deseas visitar la página de descarga?
+"@
+    
+    $result = [System.Windows.MessageBox]::Show(
+        $message,
+        "Actualización Disponible",
+        [System.Windows.MessageBoxButton]::YesNo,
+        [System.Windows.MessageBoxImage]::Information
+    )
+    
+    if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
+        Start-Process $UpdateInfo.DownloadUrl
+    }
+}
+
+$script:AppVersion = Get-AppVersion
 
 # --------------------------------------------------------------
 
@@ -129,11 +246,12 @@ function New-StatusPill([string]$text, [string]$color) {
 "@
 }
 
-# Build XAML UI
+# Build XAML UI with version in title
+$windowTitleWithVersion = "$WindowTitle v$script:AppVersion"
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="$WindowTitle" Height="820" Width="800" WindowStartupLocation="CenterScreen"
+        Title="$windowTitleWithVersion" Height="820" Width="800" WindowStartupLocation="CenterScreen"
         Background="#0b1220">
   <Grid Margin="16">
     <Grid.RowDefinitions>
@@ -151,6 +269,12 @@ function New-StatusPill([string]$text, [string]$color) {
       </Border>
       <Border Background="#1f2937" CornerRadius="8" Padding="8" Margin="6,0,0,0">
         <TextBlock x:Name="TargetsText" Text="Targets: " Foreground="#93c5fd" FontSize="12"/>
+      </Border>
+      <Border Background="#1f2937" CornerRadius="8" Padding="8" Margin="6,0,0,0">
+        <StackPanel Orientation="Horizontal">
+          <TextBlock x:Name="VersionText" Text="v$script:AppVersion" Foreground="#93c5fd" FontSize="12" VerticalAlignment="Center"/>
+          <Button x:Name="BtnCheckUpdate" Content="🔄" Padding="4,2" Margin="6,0,0,0" FontSize="10" ToolTip="Buscar actualizaciones"/>
+        </StackPanel>
       </Border>
     </StackPanel>
 
@@ -285,6 +409,7 @@ try {
     $BtnClear = $window.FindName("BtnClear")
     $BtnCopy = $window.FindName("BtnCopy")
     $BtnExport = $window.FindName("BtnExport")
+    $BtnCheckUpdate = $window.FindName("BtnCheckUpdate")
     
     # Verify critical controls were found
     if (-not $RouterDot -or -not $NetDot -or -not $LogBox) {
@@ -731,6 +856,41 @@ $BtnCopy.Add_Click({
         [System.Windows.Clipboard]::SetText($LogBox.Text)
     })
 
+$BtnCheckUpdate.Add_Click({
+        try {
+            $BtnCheckUpdate.IsEnabled = $false
+            $BtnCheckUpdate.Content = "⏳"
+            Add-Log "Verificando actualizaciones..."
+            
+            $updateInfo = Test-UpdateAvailable -CurrentVersion $script:AppVersion -ShowUI
+            
+            if ($updateInfo.Available) {
+                Add-Log "Actualización disponible: v$($updateInfo.LatestVersion)"
+            }
+            else {
+                if ($updateInfo.Error) {
+                    Add-Log "No se pudo verificar actualizaciones: $($updateInfo.Error)"
+                }
+                else {
+                    Add-Log "Estás usando la última versión (v$script:AppVersion)"
+                    [System.Windows.MessageBox]::Show(
+                        "Estás usando la última versión disponible (v$script:AppVersion)",
+                        "Sin Actualizaciones",
+                        [System.Windows.MessageBoxButton]::OK,
+                        [System.Windows.MessageBoxImage]::Information
+                    )
+                }
+            }
+        }
+        catch {
+            Add-Log "Error al verificar actualizaciones: $_"
+        }
+        finally {
+            $BtnCheckUpdate.Content = "🔄"
+            $BtnCheckUpdate.IsEnabled = $true
+        }
+    })
+
 $BtnExport.Add_Click({
         try {
             # Prepare report data
@@ -752,7 +912,7 @@ $BtnExport.Add_Click({
 INTERNET HEALTH MONITOR - REPORTE
 ========================================
 Generado: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
-Version: 1.0.0
+Version: $script:AppVersion
 
 CONFIGURACIÓN DE RED:
 ---------------------
@@ -816,11 +976,26 @@ Fin del Reporte
     })
 
 # Start
+Add-Log "Internet Health Monitor v$script:AppVersion"
 Add-Log "Usando router: $script:defaultGw"
 Add-Log "Objetivos Internet: $($InternetTargets -join ', ')"
 Add-Log "Muestreo cada ${PingIntervalMs}ms; ventana $SampleWindow; latencia alta Router>${HighLatencyMsRouter}ms; Internet>${HighLatencyMsInternet}ms"
 Add-Log "Iniciando monitoreo..."
 $timer.Start()
+
+# Check for updates in background (non-blocking) if enabled
+if ($CheckUpdatesOnStartup) {
+    [void][System.Windows.Threading.Dispatcher]::CurrentDispatcher.InvokeAsync({
+            Start-Sleep -Seconds 3  # Wait 3 seconds after startup
+            $updateInfo = Test-UpdateAvailable -CurrentVersion $script:AppVersion -ShowUI
+            if ($updateInfo.Available) {
+                Add-Log "💡 Nueva versión disponible: v$($updateInfo.LatestVersion) (actual: v$script:AppVersion)"
+            }
+            else {
+                Add-Log "✓ Versión actual: v$script:AppVersion"
+            }
+        }, [System.Windows.Threading.DispatcherPriority]::Background)
+}
 
 # Show window
 $null = $window.ShowDialog()

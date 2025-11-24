@@ -2,7 +2,6 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-lightgrey.svg)
 ![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
@@ -47,6 +46,7 @@ La aplicación monitorea en tiempo real ambas conexiones y proporciona diagnóst
 - 💾 **Exportar Reportes**: Guarda informes completos con estadísticas y logs
 - 🎨 **Interfaz Moderna**: Diseño oscuro profesional y fácil de leer
 - ⚙️ **Altamente Configurable**: Ajusta umbrales, intervalos y targets según tus necesidades
+- 🔄 **Auto-Actualización**: Verifica automáticamente si hay nuevas versiones disponibles
 
 ---
 
@@ -98,6 +98,8 @@ internet-health-monitor/
 ├── README.md            # Documentación completa
 ├── README.es.md         # Guía rápida en español
 ├── CHANGELOG.md         # Historial de versiones
+├── VERSIONING.md        # Guía de versionamiento
+├── UPDATE_SYSTEM.md     # Sistema de auto-actualización
 ├── LICENSE              # Licencia MIT
 └── .gitignore           # Archivos ignorados por Git
 ```
@@ -225,6 +227,37 @@ $InternetTargets = @("208.67.222.222", "208.67.220.220")
 # Quad9 DNS
 $InternetTargets = @("9.9.9.9", "149.112.112.112")
 ```
+
+---
+
+## 🔄 Sistema de Actualización
+
+Internet Health Monitor verifica automáticamente si hay nuevas versiones disponibles.
+
+### **Verificación Automática**
+
+- Al iniciar la app (después de 3 segundos)
+- En segundo plano (no interrumpe el monitoreo)
+- Te notifica si hay una actualización
+
+### **Verificación Manual**
+
+- Haz clic en el botón **🔄** en el header de la aplicación
+- La versión actual siempre está visible
+
+### **Desactivar Verificación Automática**
+
+Edita `config.json`:
+
+```json
+{
+  "advanced": {
+    "checkUpdatesOnStartup": false
+  }
+}
+```
+
+Ver [UPDATE_SYSTEM.md](UPDATE_SYSTEM.md) para más detalles.
 
 ---
 

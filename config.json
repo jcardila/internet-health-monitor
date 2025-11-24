@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "_comment": "This version should match InternetHealth.ps1. It's for reference only.",
   "version": "1.0.0",
   "description": "Configuration file for Internet Health Monitor. Edit these values to customize the application behavior.",
   
@@ -36,7 +37,8 @@
   "advanced": {
     "autoDetectGateway": true,
     "fallbackGateway": "192.168.1.1",
-    "comment": "If autoDetectGateway fails, fallbackGateway will be used"
+    "checkUpdatesOnStartup": true,
+    "comment": "autoDetectGateway: Auto-detect router. fallbackGateway: Used if detection fails. checkUpdatesOnStartup: Check for updates when app starts"
   }
 }
 

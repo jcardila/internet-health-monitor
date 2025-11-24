@@ -6,6 +6,11 @@
 InternetHealthReport_*.txt
 *Report*.txt
 
+# Release packages
+InternetHealthMonitor-*.zip
+*.zip
+release-temp/
+
 # Windows System Files
 Thumbs.db
 ehthumbs.db
