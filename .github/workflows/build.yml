@@ -1,5 +1,7 @@
 # Compila y prueba en cada cambio. Con una etiqueta v* (p. ej. v2.0.1) además crea el instalador
-# de Velopack y lo publica como release de GitHub.
+# de Velopack y lo sube a GitHub Releases como BORRADOR. Al publicarlo a mano, pasa a ser el
+# "latest" y los equipos instalados se actualizan solos desde
+# https://github.com/jcardila/internet-health-monitor/releases/latest/download
 name: build
 
 on:
@@ -37,18 +39,14 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}".TrimStart("v")
-          ./build/build.ps1 -Version $version -Pack -SkipTests
+          ./build/build.ps1 -Version $version -Pack -SkipTests `
+            -GithubRepo "${{ github.server_url }}/${{ github.repository }}" -GithubToken "${{ secrets.GITHUB_TOKEN }}"
 
-      - name: Guardar artefactos
+      - name: Subir a GitHub Releases (borrador)
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v4
-        with:
-          name: releases
-          path: artifacts/releases/*
-
-      - name: Publicar release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: artifacts/releases/*
-          draft: true
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          vpk upload github --outputDir artifacts/releases `
+            --repoUrl "${{ github.server_url }}/${{ github.repository }}" --token "${{ secrets.GITHUB_TOKEN }}" `
+            --tag "${{ github.ref_name }}" --releaseName "Monitor de Conexión $version"

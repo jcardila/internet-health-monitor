@@ -21,6 +21,7 @@
   "historyRetentionDays": 30,
 
   // URL donde se publican las actualizaciones (carpeta con releases.win.json generada por Velopack).
+  // Se usa la descarga directa del último release de GitHub (sin el límite de consultas de su API).
   // Vacío = sin actualizaciones automáticas.
-  "updateFeedUrl": ""
+  "updateFeedUrl": "https://github.com/jcardila/internet-health-monitor/releases/latest/download"
 }

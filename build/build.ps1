@@ -17,7 +17,11 @@ param(
     [string]$SignParams = "",
     [switch]$SkipTests,
     # Debe coincidir con la versión del paquete Velopack en InternetHealth.App.csproj.
-    [string]$VpkVersion = "1.2.158"
+    [string]$VpkVersion = "1.2.158",
+    # Con -Pack: descarga antes el último release de este repositorio para generar el paquete
+    # delta (actualización pequeña) y un releases.win.json con el historial.
+    [string]$GithubRepo = "",
+    [string]$GithubToken = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -54,6 +58,14 @@ Write-Host ("Publicado en {0} ({1:N1} MB)" -f $publish, $size) -ForegroundColor 
 if ($Pack) {
     Step "Creando instalador y paquetes de actualización (Velopack)"
     dotnet tool update -g vpk --version $VpkVersion | Out-Null
+    $tools = Join-Path $env:USERPROFILE ".dotnet\tools"
+    if ($env:PATH -notlike "*$tools*") { $env:PATH += ";$tools" } # recién instalada, en una consola nueva o en CI
+    if ($GithubRepo) {
+        $dlArgs = @("download", "github", "--repoUrl", $GithubRepo, "--outputDir", $releases)
+        if ($GithubToken) { $dlArgs += @("--token", $GithubToken) }
+        vpk @dlArgs
+        if ($LASTEXITCODE -ne 0) { Write-Host "No se encontró un release anterior: se crea solo el paquete completo." -ForegroundColor Yellow }
+    }
     $vpkArgs = @(
         "pack",
         "--packId", "InternetHealthMonitor",

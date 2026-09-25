@@ -99,6 +99,9 @@ public sealed class UserPreferences
     public DateTimeOffset? DoNotDisturbUntil { get; set; }
     public bool FirstRunCompleted { get; set; }
 
+    /// <summary>Última búsqueda de actualizaciones que respondió bien (ver <see cref="UpdateSchedule"/>).</summary>
+    public DateTimeOffset? LastUpdateCheck { get; set; }
+
     public static UserPreferences Load(string path)
     {
         try

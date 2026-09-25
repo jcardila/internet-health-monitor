@@ -43,6 +43,7 @@ internal sealed class AppHost
     private Health _lastTrayHealth = (Health)(-1);
     private string _lastTrayText = "";
     private bool _uiRefreshQueued;
+    private int _updateFailures;
 
     public AppHost(App app, SingleInstance instance, string[] args, bool firstRun)
     {
@@ -392,12 +393,24 @@ internal sealed class AppHost
     {
         _updates = new UpdateService(_settings.UpdateFeedUrl);
         if (!_updates.IsConfigured || !_updates.IsInstalled) return;
-        _updateTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMinutes(2) };
+        _updateTimer = new DispatcherTimer(DispatcherPriority.Background);
         _updateTimer.Tick += async (_, _) =>
         {
-            _updateTimer.Interval = TimeSpan.FromHours(4);
-            await CheckUpdatesAsync(userInitiated: false);
+            _updateTimer.Stop();
+            if (_updates.HasPendingUpdate) TryApplyPendingUpdate(); // ya descargada: solo falta instalarla
+            else await CheckUpdatesAsync(userInitiated: false);
+            ScheduleNextUpdateCheck(atStartup: false);
         };
+        ScheduleNextUpdateCheck(atStartup: true);
+    }
+
+    /// <summary>Programa la próxima consulta: al azar al iniciar, cada ~24 h si responde, con espera creciente si falla.</summary>
+    private void ScheduleNextUpdateCheck(bool atStartup)
+    {
+        if (_updateTimer is null) return;
+        _updateTimer.Interval = _updates.HasPendingUpdate
+            ? TimeSpan.FromMinutes(30) // descargada pero sin instalar (en llamada o con ventanas abiertas)
+            : UpdateSchedule.NextDelay(DateTimeOffset.Now, _prefs.LastUpdateCheck, _updateFailures, atStartup, Random.Shared);
         _updateTimer.Start();
     }
 
@@ -406,20 +419,40 @@ internal sealed class AppHost
         if (_updates is null) return;
         _settingsVm.IsChecking = true;
         _settingsVm.UpdateStatus = "Buscando…";
-        var message = await _updates.CheckAndDownloadAsync();
+        var (ok, message) = await _updates.CheckAndDownloadAsync();
         _settingsVm.IsChecking = false;
         _settingsVm.UpdateStatus = message;
         _engine.Log.Add(DateTimeOffset.Now, "Actualizaciones: " + message);
 
-        // Instalar solo si no hay una llamada en curso ni ventanas abiertas (reinicio en ~2 s, invisible).
-        if (_updates.HasPendingUpdate && !userInitiated && _engine.Latest?.Call.InCall != true && _main is null && _flyout?.IsVisible != true)
+        if (ok)
         {
-            // ApplyUpdatesAndRestart termina el proceso sin pasar por Application.Exit: cerramos todo antes.
-            _history.Flush();
-            try { _engine.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(3)); } catch { /* ignorar */ }
-            _tray.Dispose();
-            _updates.ApplyAndRestart();
+            _updateFailures = 0;
+            _prefs.LastUpdateCheck = DateTimeOffset.Now;
+            _prefs.Save(_paths.PreferencesFile);
         }
+        else if (_updates.IsConfigured && _updates.IsInstalled)
+        {
+            _updateFailures++;
+        }
+
+        if (!userInitiated) TryApplyPendingUpdate();
+        else if (_updateTimer is not null)
+        {
+            // Búsqueda manual: reprogramar según el resultado (p. ej. instalar en 30 min lo descargado).
+            _updateTimer.Stop();
+            ScheduleNextUpdateCheck(atStartup: false);
+        }
+    }
+
+    /// <summary>Instala solo si no hay una llamada en curso ni ventanas abiertas (reinicio en ~2 s, invisible).</summary>
+    private void TryApplyPendingUpdate()
+    {
+        if (!_updates.HasPendingUpdate || _engine.Latest?.Call.InCall == true || _main is not null || _flyout?.IsVisible == true) return;
+        // ApplyUpdatesAndRestart termina el proceso sin pasar por Application.Exit: cerramos todo antes.
+        _history.Flush();
+        try { _engine.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(3)); } catch { /* ignorar */ }
+        _tray.Dispose();
+        _updates.ApplyAndRestart();
     }
 
     // ---------- Errores y cierre ----------

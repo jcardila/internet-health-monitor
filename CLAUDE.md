@@ -207,7 +207,7 @@ La compilación de WPF **solo funciona en Windows**. En Linux solo compilan y se
 
 ## Estado y pendientes (sep. 2026)
 
-- v2.0.0 compila en Windows y las 43 pruebas pasan. Verificado en la demo en el PC de Juan (24 sep.):
+- v2.0.0 compila en Windows y las 48 pruebas pasan. Verificado en la demo en el PC de Juan (24 sep.):
   ícono de bandeja (globo + insignia), franja de demo, "Aquí falla", etiqueta "Internet" y el texto
   "Mejorando… confirmando".
 - La raíz ya quedó limpia: las copias de la v1 se enviaron a la Papelera (siguen en `legacy/`) y el
@@ -216,15 +216,19 @@ La compilación de WPF **solo funciona en Windows**. En Linux solo compilan y se
 - Por revisar: al recuperarse de un Wi-Fi débil, la ventana de mediciones aún guarda las pérdidas
   viejas y durante ~30 s se culpa al router o al proveedor ("cambio de causa" con la misma
   gravedad). Se vio en la demo; falta confirmar si pasa con redes reales.
+- Decidido (24 sep.): el feed de actualizaciones es **GitHub Releases** (repo público), con la URL
+  de descarga directa `…/releases/latest/download` (SimpleWebSource, sin la API ni su límite de
+  60/h por IP). `UpdateSchedule` reparte las consultas: 2–20 min al azar al iniciar, ~24 h tras
+  un éxito (guardado en `UserPreferences.LastUpdateCheck`) y espera creciente hasta 8 h si falla.
+  CI sube cada etiqueta `v*` como borrador con `vpk upload github`; Juan lo publica a mano.
+- Decidido: por ahora **sin firma de código**. Azure Artifact Signing público no admite Colombia;
+  la opción futura es un certificado OV con firma en la nube.
 - Decisiones abiertas de Juan:
-  - Dónde alojar el feed de actualizaciones (Azure Blob o un servidor propio; GitHub Releases
-    tiene límite de consultas por IP).
-  - Certificado de firma de código (OV de una CA, o Azure Trusted Signing si Colombia es elegible).
   - `supportName`, `supportUrl` y `supportEmail` reales en `defaults.json` (usan Zoho Desk como
     mesa de ayuda).
 - Ideas a futuro: botones de acción en los avisos (requiere el SDK de Windows / AppNotification),
   y un tablero de Power BI plantilla sobre los CSV compartidos.
 - Primer instalador generado (24 sep.): `artifacts\releases\InternetHealthMonitor-win-Setup.exe`
-  (77 MB, sin firma y sin `updateFeedUrl`: sirve para pruebas y un piloto, no para repartir a todos).
+  (77 MB, sin firma, ya con `updateFeedUrl`). Se actualizará solo cuando exista un release publicado.
 - Nada está commiteado todavía: los cambios de la v2 están como pendientes en la rama `dev`.
   Commitea solo cuando Juan lo pida.
