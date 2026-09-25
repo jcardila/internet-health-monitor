@@ -15,7 +15,9 @@ param(
     [string]$Version = "2.0.0",
     [switch]$Pack,
     [string]$SignParams = "",
-    [switch]$SkipTests
+    [switch]$SkipTests,
+    # Debe coincidir con la versión del paquete Velopack en InternetHealth.App.csproj.
+    [string]$VpkVersion = "1.2.158"
 )
 
 $ErrorActionPreference = "Stop"
@@ -51,13 +53,14 @@ Write-Host ("Publicado en {0} ({1:N1} MB)" -f $publish, $size) -ForegroundColor 
 
 if ($Pack) {
     Step "Creando instalador y paquetes de actualización (Velopack)"
-    dotnet tool update -g vpk | Out-Null
+    dotnet tool update -g vpk --version $VpkVersion | Out-Null
     $vpkArgs = @(
         "pack",
         "--packId", "InternetHealthMonitor",
         "--packVersion", $Version,
         "--packDir", $publish,
         "--mainExe", "InternetHealthMonitor.exe",
+        "--runtime", "win-x64",
         "--packTitle", "Monitor de Conexión",
         "--packAuthors", "Grupo Ardisa",
         "--icon", "src/InternetHealth.App/Assets/app.ico",

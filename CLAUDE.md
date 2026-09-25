@@ -155,8 +155,9 @@ La compilación de WPF **solo funciona en Windows**. En Linux solo compilan y se
 - `Velopack.ApplyUpdatesAndRestart` termina el proceso con `Environment.Exit` y **no** dispara
   `Application.Exit`. Antes de llamarlo, vacía el historial y desecha el motor y el ícono de la
   bandeja; si no, queda un ícono fantasma.
-- La versión de Velopack está en `0.0.*` (flotante). Cuando haya un build estable, fíjala a la
-  versión resuelta en `obj/project.assets.json`, y usa la misma versión de la herramienta `vpk`.
+- Velopack está fijado en **1.2.158**, igual que la herramienta `vpk` (`build.ps1 -VpkVersion`).
+  Antes estaba en `0.0.*`, que resolvía a la 0.0.1298 (muy vieja: la serie actual es 1.x). Si
+  subes una, sube la otra. `vpk pack` necesita `--runtime win-x64` o marca el paquete como x86.
 
 **Red y Windows**
 - `PingReply.RoundtripTime` vale **0** para `TtlExpired`: mide con Stopwatch en los pings con TTL.
@@ -222,6 +223,8 @@ La compilación de WPF **solo funciona en Windows**. En Linux solo compilan y se
   - `supportName`, `supportUrl` y `supportEmail` reales en `defaults.json` (usan Zoho Desk como
     mesa de ayuda).
 - Ideas a futuro: botones de acción en los avisos (requiere el SDK de Windows / AppNotification),
-  un tablero de Power BI plantilla sobre los CSV compartidos y fijar la versión de Velopack.
+  y un tablero de Power BI plantilla sobre los CSV compartidos.
+- Primer instalador generado (24 sep.): `artifacts\releases\InternetHealthMonitor-win-Setup.exe`
+  (77 MB, sin firma y sin `updateFeedUrl`: sirve para pruebas y un piloto, no para repartir a todos).
 - Nada está commiteado todavía: los cambios de la v2 están como pendientes en la rama `dev`.
   Commitea solo cuando Juan lo pida.
