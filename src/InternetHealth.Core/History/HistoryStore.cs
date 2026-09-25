@@ -259,7 +259,7 @@ public sealed class HistoryStore
             Csv.ParseDouble(Get(p + "_avg_ms")), Csv.ParseDouble(Get(p + "_max_ms")), Csv.ParseDouble(Get(p + "_jitter_ms")));
         return new MinuteRow
         {
-            Minute = new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local)),
+            Minute = WithOffset(local, Get("minute_utc"), "yyyy-MM-dd'T'HH:mm'Z'"),
             Device = Get("device"), User = Get("user"), AppVersion = Get("app_version"),
             ConnectionType = Get("connection_type"), Adapter = Get("adapter"), Ssid = Get("ssid"), Bssid = Get("bssid"),
             GatewayIp = Get("gateway_ip"), GatewayMac = Get("gateway_mac"), ProviderHop = Get("provider_hop"),
@@ -276,6 +276,22 @@ public sealed class HistoryStore
             SecondsGood = Csv.ParseInt(Get("seconds_good")) ?? 0, SecondsFair = Csv.ParseInt(Get("seconds_fair")) ?? 0,
             SecondsPoor = Csv.ParseInt(Get("seconds_poor")) ?? 0, SecondsDown = Csv.ParseInt(Get("seconds_down")) ?? 0,
         };
+    }
+
+    /// <summary>
+    /// Reconstruye el instante exacto con la columna UTC: la diferencia con la hora local es la zona
+    /// horaria de quien escribió el archivo. Así un CSV leído en otra zona horaria (otro equipo, un
+    /// viaje, un servidor en UTC) no se corre. Sin columna UTC válida, usa la zona del equipo.
+    /// </summary>
+    private static DateTimeOffset WithOffset(DateTime local, string utcText, string utcFormat)
+    {
+        if (DateTime.TryParseExact(utcText, utcFormat, Csv.Inv, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var utc))
+        {
+            var offset = local - utc;
+            if (offset.Ticks % TimeSpan.TicksPerMinute == 0 && offset.Duration() <= TimeSpan.FromHours(14))
+                return new DateTimeOffset(local, offset);
+        }
+        return new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local));
     }
 
     public static List<(DateTimeOffset Time, Health Severity, DiagnosisCode Code, string Title)> ReadEvents(
@@ -296,7 +312,7 @@ public sealed class HistoryStore
                 var f = Csv.Split(line);
                 string Get(string n) => idx.TryGetValue(n, out var i) && i < f.Count ? f[i] : "";
                 if (!DateTime.TryParseExact(Get("time_local"), "yyyy-MM-dd HH:mm:ss", Csv.Inv, DateTimeStyles.None, out var t)) continue;
-                var time = new DateTimeOffset(t, TimeZoneInfo.Local.GetUtcOffset(t));
+                var time = WithOffset(t, Get("time_utc"), "yyyy-MM-dd'T'HH:mm:ss'Z'");
                 if (time < from) continue;
                 list.Add((time,
                     Enum.TryParse<Health>(Get("severity"), out var h) ? h : Health.Unknown,

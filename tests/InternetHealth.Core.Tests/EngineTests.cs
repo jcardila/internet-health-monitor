@@ -161,6 +161,22 @@ public class EngineTests
     }
 
     [Test]
+    public async Task History_written_in_another_time_zone_reads_back_at_the_same_instant()
+    {
+        // Pasó en GitHub Actions (servidor en UTC): las filas se leían corridas 5 h y el filtro las
+        // descartaba. Aquí se escribe con UTC+3 para que falle en cualquier equipo que no esté en +3.
+        var (e, clock, _, _, paths) = Create();
+        clock.Now = Build.T0.ToOffset(TimeSpan.FromHours(3)); // mismo instante, otra zona horaria
+        await Rounds(e, clock, 150);
+        var rows = HistoryStore.Read(paths, Build.T0.AddMinutes(-1), Build.T0.AddMinutes(5));
+        Assert.True(rows.Count >= 2, $"filas: {rows.Count}");
+        Assert.Equal(TimeSpan.FromHours(3), rows[0].Minute.Offset);
+        Assert.True(rows[0].Minute >= Build.T0 && rows[0].Minute <= Build.T0.AddMinutes(3), $"minuto {rows[0].Minute}");
+        await e.DisposeAsync();
+        Directory.Delete(paths.DataRoot, true);
+    }
+
+    [Test]
     public async Task Provider_hop_is_discovered_via_ttl()
     {
         var (e, clock, _, _, _) = Create();
