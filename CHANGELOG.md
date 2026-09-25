@@ -1,105 +1,37 @@
 # Changelog
 
-All notable changes to the Internet Health Monitor project will be documented in this file.
+Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y
+[versionado semántico](https://semver.org/lang/es/).
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.0.0] - 2026-09
+
+Reescritura completa en .NET 10 (WPF). La versión 1 (PowerShell) queda en `legacy/`.
+
+### Nuevo
+- Ícono en la bandeja del sistema (globo del color de la barra de tareas con insignia de estado, al estilo de OneDrive o Teams) y panel rápido.
+- Texto "Mejorando… confirmando que la conexión se mantenga estable" mientras las cifras ya mejoraron pero el estado aún no cambia.
+- Modo demostración siempre visible: franja azul, "[Demo]" en los avisos y "DEMO" en el texto del ícono.
+- Cadena de conexión (equipo → Wi-Fi/cable → router → proveedor → internet) con el eslabón culpable resaltado.
+- Calidad estimada para videollamadas (MOS) con latencia, variación (jitter) y pérdida.
+- Diagnóstico por eslabón: primero se evalúa la experiencia de extremo a extremo y solo si es mala se busca el culpable.
+- Nuevas mediciones: primer salto del proveedor, conexión real (DNS + TCP 443) a Teams y Outlook, señal/banda/velocidad del Wi-Fi, uso de red del equipo, VPN y portal cautivo.
+- Funciona en redes que bloquean el ping (usa conexiones TCP).
+- Avisos de Windows solo cuando el problema persiste, más rápidos durante llamadas (micrófono en uso), con aviso de recuperación y "No molestar".
+- Historial local por minuto (30 días) con gráficas de 1 h / 6 h / 24 h / 7 días y registro de cambios de estado.
+- "Compartir diagnóstico": .zip con reporte HTML + CSV y resumen copiado para Teams.
+- Formato de datos estable para consolidar varias sedes en Power BI.
+- Tema claro/oscuro automático, textos en español neutro, accesible (estado con símbolo, no solo color).
+- Instalador por usuario sin administrador, inicio con Windows, instancia única y actualizaciones automáticas (Velopack).
+- Pruebas automáticas del núcleo y CI en GitHub Actions.
+
+### Corregido (respecto a v1)
+- La interfaz ya no se congela: las mediciones corren en segundo plano.
+- No hay falsas alarmas por un solo ping perdido ni por routers que responden lento al ping.
+- Se detectan los cambios de red, VPN y la reanudación después de suspender.
+- La versión del ejecutable se reporta bien (antes quedaba fija en 1.0.0).
+- La búsqueda de actualizaciones ya no bloquea la app ni muestra ventanas emergentes.
+- Textos que salían cortados en la cadena: "Aquí falla" y "Internet".
+- Sin conexión, la latencia muestra "sin respuesta" en vez de un promedio viejo.
 
 ## [1.0.0] - 2025-11-24
-
-### Added
-
-- 🎉 Initial release of Internet Health Monitor
-- ⚡ Real-time monitoring of router/gateway connection quality
-- 🌍 Real-time monitoring of internet connection quality
-- 📊 Dynamic latency graphs with color-coded visualization (green/yellow/red)
-- 📈 Statistical analysis: average latency and effective packet loss
-- 🧠 Intelligent diagnostic system that identifies whether problems are local (router) or external (ISP)
-- 💡 Step-by-step troubleshooting recommendations based on detected issues
-- 🎯 Smart prioritization: warns to fix router issues before blaming ISP
-- 📝 Detailed event logging with timestamps
-- 💾 Export functionality: save complete reports with statistics and logs
-- 🎨 Modern dark-themed professional UI using WPF
-- ⚙️ Highly configurable thresholds and monitoring parameters
-- 🔧 External JSON configuration file support
-- 🚀 Easy-to-use launcher (RUN_ME.bat) that handles execution policies
-- 📦 No installation required - fully portable
-- 🔒 No administrator privileges needed
-- 🌐 Multi-language support (Spanish interface with English documentation)
-- ✅ Automatic gateway detection with fallback support
-- 📊 Smooth Bezier curve graphs with gradient colors
-- 🎨 Real-time color-coded status indicators
-- 📋 Copy and clear log functionality
-
-### Technical Features
-
-- PowerShell + WPF (Windows Presentation Foundation)
-- .NET Framework 4.7.2+ compatible
-- Robust error handling with user-friendly messages
-- Version checking for PowerShell compatibility
-- XAML-based modern UI
-- Rolling window statistical analysis
-- Multiple internet target rotation for reliability
-
-### Documentation
-
-- Comprehensive README.md with installation and usage instructions
-- Quick start guide (README.es.md) in Spanish
-- MIT License
-- .gitignore for clean repository management
-- Detailed inline code comments
-- Configuration examples for different DNS providers
-
-### Tested On
-
-- Windows 11 (Build 26100)
-- PowerShell 7.x
-- .NET Framework 4.7.2+
-
----
-
-## [Unreleased]
-
-### Planned Features
-
-- [ ] Convert to standalone .exe executable
-- [ ] System tray minimization support
-- [ ] Windows notifications when issues are detected
-- [ ] Persistent history between sessions
-- [ ] Long-term historical graphs (24h, 7d, 30d)
-- [ ] "Speedtest" mode to measure bandwidth
-- [ ] Multiple language support (i18n)
-- [ ] Export reports in PDF/HTML formats
-- [ ] Auto-update functionality
-- [ ] Command-line interface (CLI) mode
-- [ ] Custom alert thresholds per connection type
-
----
-
-## Version History
-
-### Versioning Scheme
-
-This project uses [Semantic Versioning](https://semver.org/):
-
-- **MAJOR** version: Incompatible API changes
-- **MINOR** version: New functionality (backward-compatible)
-- **PATCH** version: Bug fixes (backward-compatible)
-
-### How to Check Your Version
-
-Run the script and check the title bar or look at the header in `InternetHealth.ps1`:
-
-```powershell
-# Version: X.Y.Z
-```
-
----
-
-## Contributing
-
-See issues and feature requests at: https://github.com/jcardila/internet-health-monitor/issues
-
----
-
-[1.0.0]: https://github.com/jcardila/internet-health-monitor/releases/tag/v1.0.0
+Versión inicial en PowerShell + WPF (ver `legacy/`).

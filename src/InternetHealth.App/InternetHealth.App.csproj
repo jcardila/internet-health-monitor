@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AssemblyName>InternetHealthMonitor</AssemblyName>
+    <RootNamespace>InternetHealth.App</RootNamespace>
+    <AssemblyTitle>Monitor de Conexión</AssemblyTitle>
+    <Description>Monitorea la calidad de tu conexión y te dice, en palabras simples, dónde está el problema.</Description>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <StartupObject>InternetHealth.App.Program</StartupObject>
+    <SatelliteResourceLanguages>es</SatelliteResourceLanguages>
+
+    <!-- Proceso residente: priorizamos memoria baja sobre rendimiento máximo -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <TieredCompilation>true</TieredCompilation>
+    <TieredPGO>true</TieredPGO>
+    <UseSystemResourceKeys>false</UseSystemResourceKeys>
+    <!-- Por defecto se publica autocontenido (no requiere instalar .NET ni permisos de administrador) -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishReadyToRun>true</PublishReadyToRun>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- App.xaml se instancia desde Program.Main (necesario para Velopack e instancia única) -->
+    <ApplicationDefinition Remove="App.xaml" />
+    <Page Include="App.xaml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Evita ambigüedades WPF/WinForms (Application, Color, Brush...): WinForms solo se usa para el ícono de bandeja -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Velopack" Version="0.0.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\InternetHealth.Core\InternetHealth.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="defaults.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Resource Include="Assets\app.ico" />
+  </ItemGroup>
+
+</Project>

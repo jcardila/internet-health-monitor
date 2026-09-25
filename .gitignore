@@ -1,57 +1,22 @@
-# ===================================================================
-# .gitignore for Internet Health Monitor
-# ===================================================================
+# .NET
+bin/
+obj/
+artifacts/
+*.user
+*.suo
+.vs/
+.vscode/
+*.DotSettings.user
+TestResults/
 
-# Exported Reports
-InternetHealthReport_*.txt
-*Report*.txt
+# Velopack
+releases/
 
-# Release packages
-InternetHealthMonitor-*.zip
-*.zip
-release-temp/
-
-# Windows System Files
+# Windows / OneDrive
 Thumbs.db
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-
-# PowerShell
-*.ps1~
-*.log
-
-# Config overrides (keep config.json template, but ignore user customizations)
-config.user.json
-config.local.json
-
-# Temporary files
-*.tmp
-*.temp
+desktop.ini
 ~$*
 
-# IDE / Editor files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-
-# Build artifacts (if converting to .exe)
-*.exe.config
-build/
-dist/
-
-# Test files
-test_*.ps1
-debug_*.txt
-
-# Screenshots (uncomment if you don't want to track them)
-# screenshots/*.png
-# screenshots/*.jpg
-
+# Versión anterior (PowerShell): artefactos generados
+legacy/build/
+legacy/*.zip

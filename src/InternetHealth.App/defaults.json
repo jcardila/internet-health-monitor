@@ -1,0 +1,26 @@
+{
+  // Configuración de la organización. TI puede editar este archivo antes de publicar una versión,
+  // o dejar uno en C:\ProgramData\InternetHealthMonitor\defaults.json para un equipo o sede.
+  "supportName": "soporte TI",
+  "supportUrl": null,
+  "supportEmail": null,
+
+  // Destinos para medir internet (IPs). Se rotan en cada medición.
+  "internetTargets": [ "1.1.1.1", "8.8.8.8", "9.9.9.9" ],
+
+  // Servicios a los que se prueba la conexión real (DNS + TCP). Puedes agregar servidores de la empresa.
+  "cloudTargets": [
+    { "name": "Microsoft Teams", "host": "teams.microsoft.com", "port": 443 },
+    { "name": "Outlook / Microsoft 365", "host": "outlook.office365.com", "port": 443 }
+  ],
+
+  // Frecuencia de medición (segundos): en reposo y en modo activo (llamada, problemas o ventana abierta).
+  "relaxedIntervalSeconds": 5,
+  "activeIntervalSeconds": 1,
+
+  "historyRetentionDays": 30,
+
+  // URL donde se publican las actualizaciones (carpeta con releases.win.json generada por Velopack).
+  // Vacío = sin actualizaciones automáticas.
+  "updateFeedUrl": ""
+}

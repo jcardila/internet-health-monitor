@@ -355,6 +355,7 @@ $windowTitleWithVersion = "$WindowTitle v$script:AppVersion"
           <Button x:Name="BtnClear" Content="Limpiar" Margin="10,0,0,0" Padding="8,4" />
           <Button x:Name="BtnCopy" Content="Copiar" Margin="6,0,0,0" Padding="8,4" />
           <Button x:Name="BtnExport" Content="Exportar Reporte" Margin="6,0,0,0" Padding="8,4" />
+          <Button x:Name="BtnReportIssue" Content="🐛 Reportar Problema" Margin="6,0,0,0" Padding="8,4" ToolTip="Reportar un bug o sugerir mejora en GitHub"/>
         </StackPanel>
         <ScrollViewer x:Name="LogScroller" VerticalScrollBarVisibility="Auto" Margin="0,6,0,0">
           <TextBox x:Name="LogBox" Text="" Foreground="#e5e7eb" Background="#0f172a" BorderBrush="#1f2937"
@@ -410,6 +411,7 @@ try {
     $BtnCopy = $window.FindName("BtnCopy")
     $BtnExport = $window.FindName("BtnExport")
     $BtnCheckUpdate = $window.FindName("BtnCheckUpdate")
+    $BtnReportIssue = $window.FindName("BtnReportIssue")
     
     # Verify critical controls were found
     if (-not $RouterDot -or -not $NetDot -or -not $LogBox) {
@@ -891,6 +893,23 @@ $BtnCheckUpdate.Add_Click({
         }
     })
 
+$BtnReportIssue.Add_Click({
+        try {
+            $issueUrl = "https://github.com/jcardila/internet-health-monitor/issues/new"
+            Start-Process -FilePath $issueUrl
+            Add-Log "Abriendo página de reporte de problemas en GitHub..."
+        }
+        catch {
+            Add-Log "ERROR al abrir navegador: $_"
+            [System.Windows.MessageBox]::Show(
+                "No se pudo abrir el navegador.`n`nVisita manualmente:`nhttps://github.com/jcardila/internet-health-monitor/issues",
+                "Error",
+                [System.Windows.MessageBoxButton]::OK,
+                [System.Windows.MessageBoxImage]::Error
+            )
+        }
+    })
+
 $BtnExport.Add_Click({
         try {
             # Prepare report data
@@ -989,10 +1008,10 @@ if ($CheckUpdatesOnStartup) {
             Start-Sleep -Seconds 3  # Wait 3 seconds after startup
             $updateInfo = Test-UpdateAvailable -CurrentVersion $script:AppVersion -ShowUI
             if ($updateInfo.Available) {
-                Add-Log "💡 Nueva versión disponible: v$($updateInfo.LatestVersion) (actual: v$script:AppVersion)"
+                Add-Log "[UPDATE] Nueva version disponible: v$($updateInfo.LatestVersion) (actual: v$script:AppVersion)"
             }
             else {
-                Add-Log "✓ Versión actual: v$script:AppVersion"
+                Add-Log "[OK] Version actual: v$script:AppVersion"
             }
         }, [System.Windows.Threading.DispatcherPriority]::Background)
 }
