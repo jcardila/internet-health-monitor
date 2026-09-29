@@ -14,7 +14,8 @@ public sealed class CloudTarget
 /// <summary>
 /// Configuración de la organización. Se toma de los valores por defecto, luego de
 /// <c>defaults.json</c> junto al ejecutable y por último de
-/// <c>%ProgramData%\InternetHealthMonitor\defaults.json</c> (para configurar un equipo o sede).
+/// <c>%ProgramData%\InternetHealthMonitor\defaults.json</c> en Windows o
+/// <c>/Library/Application Support/InternetHealthMonitor/defaults.json</c> en Mac (para configurar un equipo o sede).
 /// </summary>
 public sealed class AppSettings
 {

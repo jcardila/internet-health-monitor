@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using InternetHealth.Core.Monitoring;
 
-namespace InternetHealth.App.ViewModels;
+namespace InternetHealth.Presentation.ViewModels;
 
 public sealed class MainWindowViewModel : ObservableObject
 {

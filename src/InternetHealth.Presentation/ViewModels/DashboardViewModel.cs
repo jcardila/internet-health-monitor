@@ -1,14 +1,12 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
-using System.Windows;
-using System.Windows.Media;
 using InternetHealth.Core.Diagnosis;
 using InternetHealth.Core.History;
 using InternetHealth.Core.Model;
 using InternetHealth.Core.Monitoring;
 using InternetHealth.Core.Stats;
 
-namespace InternetHealth.App.ViewModels;
+namespace InternetHealth.Presentation.ViewModels;
 
 public sealed class ChainNodeViewModel : ObservableObject
 {
@@ -17,7 +15,7 @@ public sealed class ChainNodeViewModel : ObservableObject
     private string _detail = "";
     private bool _isCulprit;
     private bool _measured;
-    private Geometry? _icon;
+    private string _iconKey = "";
 
     public Segment Segment { get; init; }
     public bool IsLast { get; init; }
@@ -27,13 +25,14 @@ public sealed class ChainNodeViewModel : ObservableObject
     public string Detail { get => _detail; set => Set(ref _detail, value); }
     public bool IsCulprit { get => _isCulprit; set => Set(ref _isCulprit, value); }
     public bool Measured { get => _measured; set => Set(ref _measured, value); }
-    public Geometry? Icon { get => _icon; set => Set(ref _icon, value); }
+    /// <summary>Clave del ícono del eslabón ("Icon.Wifi", "Icon.Router"…): cada interfaz la resuelve en sus recursos.</summary>
+    public string IconKey { get => _iconKey; set => Set(ref _iconKey, value); }
     public string AutomationName => $"{Label}: {Health.ToLabel()}. {Detail}";
     public void RaiseHealth() => Raise(nameof(Health));
 
-    public void Update(Health health, string label, string detail, bool culprit, bool measured, Geometry? icon)
+    public void Update(Health health, string label, string detail, bool culprit, bool measured, string iconKey)
     {
-        Health = health; Label = label; Detail = detail; IsCulprit = culprit; Measured = measured; Icon = icon;
+        Health = health; Label = label; Detail = detail; IsCulprit = culprit; Measured = measured; IconKey = iconKey;
         Raise(nameof(AutomationName));
     }
 }
@@ -100,7 +99,7 @@ public sealed class DashboardViewModel : ObservableObject
             Chain.Add(new ChainNodeViewModel
             {
                 Segment = seg, IsLast = seg == Segment.Internet, Label = DefaultLabel(seg), Detail = "Midiendo…",
-                Icon = IconFor(seg, LinkType.WiFi),
+                IconKey = IconFor(seg, LinkType.WiFi),
             });
     }
 
@@ -329,16 +328,12 @@ public sealed class DashboardViewModel : ObservableObject
         _ => "Internet",
     };
 
-    private static Geometry? IconFor(Segment s, LinkType link)
+    private static string IconFor(Segment s, LinkType link) => s switch
     {
-        var key = s switch
-        {
-            Segment.Device => "Icon.Device",
-            Segment.Link => link == LinkType.Ethernet ? "Icon.Cable" : "Icon.Wifi",
-            Segment.Router => "Icon.Router",
-            Segment.Provider => "Icon.Provider",
-            _ => "Icon.Globe",
-        };
-        return Application.Current?.TryFindResource(key) as Geometry;
-    }
+        Segment.Device => "Icon.Device",
+        Segment.Link => link == LinkType.Ethernet ? "Icon.Cable" : "Icon.Wifi",
+        Segment.Router => "Icon.Router",
+        Segment.Provider => "Icon.Provider",
+        _ => "Icon.Globe",
+    };
 }

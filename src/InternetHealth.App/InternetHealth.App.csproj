@@ -45,6 +45,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\InternetHealth.Core\InternetHealth.Core.csproj" />
+    <ProjectReference Include="..\InternetHealth.Presentation\InternetHealth.Presentation.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -41,6 +41,15 @@ public sealed class HealthToGlyphConverter : IValueConverter
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => Binding.DoNothing;
 }
 
+/// <summary>Clave de recurso (p. ej. "Icon.Wifi") → el recurso de la app (la geometría del ícono).</summary>
+public sealed class ResourceByKeyConverter : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value is string key && key.Length > 0 ? Application.Current?.TryFindResource(key) : null;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => Binding.DoNothing;
+}
+
 public sealed class InverseBoolToVisibilityConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>

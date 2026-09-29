@@ -5,7 +5,7 @@ using InternetHealth.Core.Model;
 using InternetHealth.Core.Settings;
 using InternetHealth.Core.Stats;
 
-namespace InternetHealth.App.ViewModels;
+namespace InternetHealth.Presentation.ViewModels;
 
 public sealed record EventItem(Health Severity, string TimeText, string SeverityLabel, string Title);
 

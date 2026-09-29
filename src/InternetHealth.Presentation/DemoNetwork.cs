@@ -3,13 +3,13 @@ using System.Net.NetworkInformation;
 using InternetHealth.Core.Model;
 using InternetHealth.Core.Network;
 
-namespace InternetHealth.App.Services;
+namespace InternetHealth.Presentation;
 
 /// <summary>
 /// Modo demostración (<c>--demo</c>): simula una red que pasa por varios escenarios para ver la
 /// interfaz, capacitar al equipo o tomar capturas sin tener que dañar una conexión real.
 /// </summary>
-internal sealed class DemoNetwork : IPinger, ITcpProber, INetworkContextProvider, ICaptivePortalChecker, IThroughputMeter, ICallDetector
+public sealed class DemoNetwork : IPinger, ITcpProber, INetworkContextProvider, ICaptivePortalChecker, IThroughputMeter, ICallDetector
 {
     private static readonly IPAddress Gateway = IPAddress.Parse("192.168.1.1");
     private static readonly IPAddress Isp = IPAddress.Parse("181.49.100.1");

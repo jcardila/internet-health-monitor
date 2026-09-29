@@ -1,0 +1,106 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="using:InternetHealth.Mac.Controls"
+        xmlns:vm="using:InternetHealth.Presentation.ViewModels"
+        x:Class="InternetHealth.Mac.Views.PanelWindow"
+        x:DataType="vm:DashboardViewModel"
+        Title="Monitor de Conexión"
+        Width="400" SizeToContent="Height" CanResize="False"
+        SystemDecorations="BorderOnly" ExtendClientAreaToDecorationsHint="True" ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="0"
+        ShowInTaskbar="False" Topmost="True" WindowStartupLocation="Manual">
+  <!-- Panel rápido junto a la barra de menús: se cierra con Esc o al hacer clic fuera. -->
+  <StackPanel>
+    <!-- Modo demostración: siempre visible para no confundir la red simulada con la real -->
+    <Border Background="{DynamicResource Accent}" Padding="20,6" IsVisible="{Binding IsDemo}">
+      <TextBlock Foreground="{DynamicResource Accent.Fg}" FontSize="12" TextWrapping="Wrap">
+        <Run FontWeight="SemiBold" Text="Modo demostración:" /> <Run Text="red y llamada simuladas, no es tu conexión real." />
+      </TextBlock>
+    </Border>
+    <StackPanel Margin="20,14,20,16">
+
+      <!-- Encabezado -->
+      <DockPanel LastChildFill="True">
+        <Button DockPanel.Dock="Right" Classes="icon" Content="✕" Click="Close_Click"
+                ToolTip.Tip="Cerrar (Esc)" AutomationProperties.Name="Cerrar" />
+        <Button DockPanel.Dock="Right" Classes="icon" Content="Ajustes" FontSize="12" Click="Settings_Click"
+                ToolTip.Tip="Ajustes" AutomationProperties.Name="Ajustes" />
+        <TextBlock Text="Monitor de Conexión" Classes="caption" VerticalAlignment="Center" />
+      </DockPanel>
+
+      <!-- Veredicto -->
+      <Grid Margin="0,10,0,0" ColumnDefinitions="Auto,*">
+        <c:StatusBadge Health="{Binding Severity}" Width="40" Height="40" VerticalAlignment="Top" Margin="0,2,14,0" />
+        <StackPanel Grid.Column="1">
+          <TextBlock Text="{Binding SeverityLabel}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Fg.Secondary}" />
+          <TextBlock Text="{Binding Title}" Classes="hero" Margin="0,1,0,0" />
+          <TextBlock Text="{Binding Summary}" Classes="body" Margin="0,4,0,0" />
+          <TextBlock Classes="caption" Margin="0,6,0,0" Foreground="{DynamicResource Accent}" IsVisible="{Binding IsImproving}"
+                     Text="Mejorando… confirmando que la conexión se mantenga estable" />
+        </StackPanel>
+      </Grid>
+
+      <!-- Cadena -->
+      <c:ChainView Margin="-6,18,-6,0" />
+
+      <!-- Calidad para videollamadas -->
+      <Border Classes="card" Margin="0,16,0,0" Padding="14,12">
+        <StackPanel>
+          <DockPanel>
+            <TextBlock DockPanel.Dock="Right" Text="{Binding MosText}" Classes="caption" VerticalAlignment="Bottom" />
+            <TextBlock Classes="section">
+              <Run Text="Calidad para videollamadas: " /><Run Text="{Binding MosLabel}" />
+            </TextBlock>
+          </DockPanel>
+          <ProgressBar Height="6" MinHeight="6" Margin="0,8,0,8" Minimum="0" Maximum="1" Value="{Binding MosFraction}" CornerRadius="3"
+                       Background="{DynamicResource Bg.Subtle}" Foreground="{Binding Severity, Converter={StaticResource HealthBrush}}" />
+          <UniformGrid Columns="3">
+            <StackPanel>
+              <TextBlock Text="Latencia" Classes="caption" />
+              <TextBlock Text="{Binding LatencyText}" FontSize="15" FontWeight="SemiBold" />
+            </StackPanel>
+            <StackPanel>
+              <TextBlock Text="Variación" Classes="caption" ToolTip.Tip="Jitter: qué tanto cambia la demora de un momento a otro. Afecta mucho las llamadas." />
+              <TextBlock Text="{Binding JitterText}" FontSize="15" FontWeight="SemiBold" />
+            </StackPanel>
+            <StackPanel>
+              <TextBlock Text="Pérdida" Classes="caption" />
+              <TextBlock Text="{Binding LossText}" FontSize="15" FontWeight="SemiBold" />
+            </StackPanel>
+          </UniformGrid>
+        </StackPanel>
+      </Border>
+
+      <!-- Qué hacer (solo si hay problema) -->
+      <Border Margin="0,12,0,0" CornerRadius="8" Padding="14,12" IsVisible="{Binding HasSteps}"
+              Background="{Binding Severity, Converter={StaticResource HealthBrush}, ConverterParameter=Soft}">
+        <StackPanel>
+          <TextBlock Text="Qué puedes hacer ahora" Classes="section" />
+          <TextBlock Text="{Binding FirstStep}" Classes="body" Foreground="{DynamicResource Fg.Primary}" Margin="0,4,0,8" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Classes="secondary" Content="Ver todos los pasos" Click="Steps_Click" />
+            <Button Classes="secondary" Content="Abrir página de inicio de sesión" Click="Captive_Click" IsVisible="{Binding IsCaptivePortal}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Llamada en curso / permisos -->
+      <TextBlock Text="{Binding CallText}" Classes="caption" Margin="0,12,0,0" Foreground="{DynamicResource Accent}" IsVisible="{Binding InCall}" />
+      <StackPanel Margin="0,8,0,0" IsVisible="{Binding LocationHint}">
+        <TextBlock Classes="caption" Text="Para ver el nombre de la red Wi-Fi, macOS pide permitir el acceso a la ubicación." />
+        <Button Classes="link" Content="Permitir" Click="Location_Click" HorizontalAlignment="Left" Margin="0,2,0,0" />
+      </StackPanel>
+
+      <!-- Acciones -->
+      <Grid Margin="0,16,0,0" ColumnDefinitions="*,10,*">
+        <Button Classes="secondary" Content="Ver detalles" Click="Details_Click" HorizontalAlignment="Stretch" />
+        <Button Grid.Column="2" Classes="primary" Content="Compartir diagnóstico" Click="Share_Click" HorizontalAlignment="Stretch"
+                ToolTip.Tip="Crea un archivo con el diagnóstico para enviarlo a soporte" />
+      </Grid>
+      <DockPanel Margin="0,10,0,0">
+        <TextBlock DockPanel.Dock="Right" Classes="caption" Text="No molestar activo" IsVisible="{Binding DndActive}" />
+        <TextBlock Text="{Binding UpdatedText}" Classes="caption" />
+      </DockPanel>
+    </StackPanel>
+  </StackPanel>
+</Window>

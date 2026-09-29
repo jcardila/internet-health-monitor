@@ -1,0 +1,227 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:InternetHealth.Mac.Controls"
+             x:Class="InternetHealth.Mac.App"
+             Name="Monitor de Conexión"
+             RequestedThemeVariant="Default">
+  <!-- RequestedThemeVariant="Default" sigue el modo claro/oscuro del Mac y cambia solo cuando el usuario lo cambia. -->
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <!-- Mismas llaves y colores que Themes/Light.xaml y Dark.xaml de Windows. -->
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="Bg.Window" Color="#F9F9F7" />
+          <SolidColorBrush x:Key="Bg.Card" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="Bg.Subtle" Color="#F1F0EC" />
+          <SolidColorBrush x:Key="Border.Card" Color="#1A0B0B0B" />
+          <SolidColorBrush x:Key="Fg.Primary" Color="#0B0B0B" />
+          <SolidColorBrush x:Key="Fg.Secondary" Color="#52514E" />
+          <SolidColorBrush x:Key="Fg.Muted" Color="#6E6D68" />
+          <SolidColorBrush x:Key="Accent" Color="#2A78D6" />
+          <SolidColorBrush x:Key="Accent.Fg" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="Status.Good" Color="#0CA30C" />
+          <SolidColorBrush x:Key="Status.Fair" Color="#FAB219" />
+          <SolidColorBrush x:Key="Status.Poor" Color="#EC835A" />
+          <SolidColorBrush x:Key="Status.Down" Color="#D03B3B" />
+          <SolidColorBrush x:Key="Status.Unknown" Color="#898781" />
+          <SolidColorBrush x:Key="Status.GoodInk" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="Status.FairInk" Color="#1A1A19" />
+          <SolidColorBrush x:Key="Status.PoorInk" Color="#1A1A19" />
+          <SolidColorBrush x:Key="Status.DownInk" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="Status.UnknownInk" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="Status.GoodSoft" Color="#E8F5E8" />
+          <SolidColorBrush x:Key="Status.FairSoft" Color="#FEF4DD" />
+          <SolidColorBrush x:Key="Status.PoorSoft" Color="#FCEBE3" />
+          <SolidColorBrush x:Key="Status.DownSoft" Color="#F9E2E2" />
+          <SolidColorBrush x:Key="Status.UnknownSoft" Color="#F1F0EC" />
+          <SolidColorBrush x:Key="Chart.Series" Color="#2A78D6" />
+          <SolidColorBrush x:Key="Chart.Grid" Color="#E1E0D9" />
+          <SolidColorBrush x:Key="Chart.Axis" Color="#C3C2B7" />
+          <SolidColorBrush x:Key="Chart.Loss" Color="#D03B3B" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="Bg.Window" Color="#141413" />
+          <SolidColorBrush x:Key="Bg.Card" Color="#1F1F1E" />
+          <SolidColorBrush x:Key="Bg.Subtle" Color="#2A2A28" />
+          <SolidColorBrush x:Key="Border.Card" Color="#1AFFFFFF" />
+          <SolidColorBrush x:Key="Fg.Primary" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="Fg.Secondary" Color="#C3C2B7" />
+          <SolidColorBrush x:Key="Fg.Muted" Color="#9C9A93" />
+          <SolidColorBrush x:Key="Accent" Color="#3987E5" />
+          <SolidColorBrush x:Key="Accent.Fg" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="Status.Good" Color="#0CA30C" />
+          <SolidColorBrush x:Key="Status.Fair" Color="#FAB219" />
+          <SolidColorBrush x:Key="Status.Poor" Color="#EC835A" />
+          <SolidColorBrush x:Key="Status.Down" Color="#D03B3B" />
+          <SolidColorBrush x:Key="Status.Unknown" Color="#898781" />
+          <SolidColorBrush x:Key="Status.GoodInk" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="Status.FairInk" Color="#1A1A19" />
+          <SolidColorBrush x:Key="Status.PoorInk" Color="#1A1A19" />
+          <SolidColorBrush x:Key="Status.DownInk" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="Status.UnknownInk" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="Status.GoodSoft" Color="#16301A" />
+          <SolidColorBrush x:Key="Status.FairSoft" Color="#3A2E12" />
+          <SolidColorBrush x:Key="Status.PoorSoft" Color="#3B2419" />
+          <SolidColorBrush x:Key="Status.DownSoft" Color="#3A1B1B" />
+          <SolidColorBrush x:Key="Status.UnknownSoft" Color="#2A2A28" />
+          <SolidColorBrush x:Key="Chart.Series" Color="#3987E5" />
+          <SolidColorBrush x:Key="Chart.Grid" Color="#2C2C2A" />
+          <SolidColorBrush x:Key="Chart.Axis" Color="#383835" />
+          <SolidColorBrush x:Key="Chart.Loss" Color="#E66767" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+
+      <!-- Íconos de la cadena de conexión (trazos en una caja de 24×24), iguales a los de Windows -->
+      <StreamGeometry x:Key="Icon.Device">M4,5 H20 V15 H4 Z M2,18.5 H22</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Wifi">M2.5,9 C7.8,4 16.2,4 21.5,9 M5.8,12.4 C9.3,9.3 14.7,9.3 18.2,12.4 M9,15.8 C10.8,14.4 13.2,14.4 15,15.8 M11.3,19.2 A0.8,0.8 0 1 0 12.7,19.2 A0.8,0.8 0 1 0 11.3,19.2</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Cable">M7,3 H17 V12 H14.5 V16 H9.5 V12 H7 Z M12,16 V21.5 M10,6 V8.5 M14,6 V8.5</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Router">M3,13 H21 V19.5 H3 Z M6.5,16.2 H7.5 M9.5,16.2 H10.5 M8,13 L6,5.5 M16,13 L18,5.5</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Provider">M12,8.5 L7.5,21.5 M12,8.5 L16.5,21.5 M9,17 H15 M9.4,6.1 C10.9,4.7 13.1,4.7 14.6,6.1 M6.9,3.6 C9.9,0.9 14.1,0.9 17.1,3.6</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Globe">M12,3 A9,9 0 1 0 12,21 A9,9 0 1 0 12,3 Z M3,12 H21 M12,3 C8.3,6.6 8.3,17.4 12,21 M12,3 C15.7,6.6 15.7,17.4 12,21</StreamGeometry>
+
+      <c:HealthToBrushConverter x:Key="HealthBrush" />
+      <c:HealthToGlyphConverter x:Key="HealthGlyph" />
+      <c:ResourceByKeyConverter x:Key="ResourceByKey" />
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+
+    <Style Selector="Window">
+      <Setter Property="Background" Value="{DynamicResource Bg.Window}" />
+      <Setter Property="Foreground" Value="{DynamicResource Fg.Primary}" />
+    </Style>
+
+    <!-- Pestañas de la ventana de detalle: tamaño como en Windows (Fluent las trae enormes) -->
+    <Style Selector="TabItem">
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="MinHeight" Value="38" />
+      <Setter Property="Padding" Value="12,0" />
+    </Style>
+    <!-- Listas compactas (registro y cambios de estado) -->
+    <Style Selector="ListBox.compact ListBoxItem">
+      <Setter Property="Padding" Value="8,3" />
+      <Setter Property="MinHeight" Value="0" />
+    </Style>
+
+    <!-- Tipografía (misma escala que en Windows) -->
+    <Style Selector="TextBlock.hero">
+      <Setter Property="FontSize" Value="20" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="Foreground" Value="{DynamicResource Fg.Primary}" />
+    </Style>
+    <Style Selector="TextBlock.section">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource Fg.Primary}" />
+    </Style>
+    <Style Selector="TextBlock.body">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="LineHeight" Value="19" />
+      <Setter Property="Foreground" Value="{DynamicResource Fg.Secondary}" />
+    </Style>
+    <Style Selector="TextBlock.caption">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="Foreground" Value="{DynamicResource Fg.Muted}" />
+    </Style>
+    <Style Selector="TextBlock.metric">
+      <Setter Property="FontSize" Value="22" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource Fg.Primary}" />
+    </Style>
+
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{DynamicResource Bg.Card}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Border.Card}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="16" />
+    </Style>
+
+    <!-- Botones: se ven igual en claro y oscuro -->
+    <Style Selector="Button.primary, Button.secondary">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Padding" Value="14,7" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="{DynamicResource Accent}" />
+      <Setter Property="Foreground" Value="{DynamicResource Accent.Fg}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.secondary">
+      <Setter Property="Background" Value="{DynamicResource Bg.Subtle}" />
+      <Setter Property="Foreground" Value="{DynamicResource Fg.Primary}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Border.Card}" />
+    </Style>
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Accent}" />
+      <Setter Property="Foreground" Value="{DynamicResource Accent.Fg}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+      <Setter Property="Opacity" Value="0.88" />
+    </Style>
+    <Style Selector="Button.secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Bg.Subtle}" />
+      <Setter Property="Foreground" Value="{DynamicResource Fg.Primary}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Fg.Muted}" />
+    </Style>
+    <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter, Button.secondary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Opacity" Value="0.75" />
+    </Style>
+    <Style Selector="Button.icon">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource Fg.Secondary}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.link">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.link:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+    </Style>
+
+    <!-- Selector de periodo del historial -->
+    <Style Selector="RadioButton.range">
+      <Setter Property="Margin" Value="0,0,6,0" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Name="Bd" Background="{DynamicResource Bg.Subtle}" BorderBrush="{DynamicResource Border.Card}"
+                  BorderThickness="1" CornerRadius="6" Padding="12,5">
+            <ContentPresenter Name="Cp" Content="{TemplateBinding Content}" Foreground="{DynamicResource Fg.Primary}" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="RadioButton.range:checked /template/ Border#Bd">
+      <Setter Property="Background" Value="{DynamicResource Accent}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    </Style>
+    <Style Selector="RadioButton.range:checked /template/ ContentPresenter#Cp">
+      <Setter Property="Foreground" Value="{DynamicResource Accent.Fg}" />
+    </Style>
+
+    <!-- Distintivo de estado: círculo de color + símbolo (nunca solo color) -->
+    <Style Selector="c|StatusBadge">
+      <Setter Property="Width" Value="22" />
+      <Setter Property="Height" Value="22" />
+    </Style>
+  </Application.Styles>
+</Application>

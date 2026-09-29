@@ -34,7 +34,7 @@
             <Border x:Name="Circle" CornerRadius="23" BorderThickness="2"
                     Background="{Binding Health, Converter={StaticResource HealthBrush}, ConverterParameter=Soft}"
                     BorderBrush="{Binding Health, Converter={StaticResource HealthBrush}}">
-              <Path Data="{Binding Icon}" Width="24" Height="24" Stretch="None" StrokeThickness="1.7"
+              <Path Data="{Binding IconKey, Converter={StaticResource ResourceByKey}}" Width="24" Height="24" Stretch="None" StrokeThickness="1.7"
                     StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
                     Stroke="{DynamicResource Fg.Primary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>

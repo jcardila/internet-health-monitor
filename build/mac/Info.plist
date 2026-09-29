@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Plantilla del paquete .app. build-mac.sh reemplaza __VERSION__. -->
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key>
+  <string>com.jcardila.internethealthmonitor</string>
+  <key>CFBundleName</key>
+  <string>Monitor de Conexión</string>
+  <key>CFBundleDisplayName</key>
+  <string>Monitor de Conexión</string>
+  <key>CFBundleExecutable</key>
+  <string>InternetHealthMonitor</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>__VERSION__</string>
+  <key>CFBundleVersion</key>
+  <string>__VERSION__</string>
+  <!-- La carpeta se llama "Monitor de Conexion.app" (sin tilde); el Finder muestra el nombre de es.lproj. -->
+  <key>LSHasLocalizedDisplayName</key>
+  <true/>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>es</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>14.0</string>
+  <!-- Vive en la barra de menús: sin ícono en el Dock (aparece solo con la ventana de detalle abierta). -->
+  <key>LSUIElement</key>
+  <true/>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+  <!-- macOS solo deja ver el nombre de la red Wi-Fi a las apps con permiso de ubicación. -->
+  <key>NSLocationUsageDescription</key>
+  <string>Para mostrar el nombre de la red Wi-Fi a la que estás conectado. La app no usa ni guarda tu ubicación.</string>
+  <key>NSLocationWhenInUseUsageDescription</key>
+  <string>Para mostrar el nombre de la red Wi-Fi a la que estás conectado. La app no usa ni guarda tu ubicación.</string>
+  <key>NSHumanReadableCopyright</key>
+  <string>Copyright (c) 2025-2026 jcardila - MIT License</string>
+</dict>
+</plist>

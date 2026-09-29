@@ -17,6 +17,9 @@ public static class Messages
     private static string ShareStep =>
         $"Si el problema continúa, usa «Compartir diagnóstico» y envíaselo a {SupportName}.";
 
+    /// <summary>Dónde ve la persona el ícono de OneDrive en su sistema.</summary>
+    private static string OneDriveIconPlace => OperatingSystem.IsMacOS() ? "en la barra de menús (arriba)" : "junto al reloj";
+
     private const string RouterRestartStep =
         "Si tienes acceso al router o módem (por ejemplo, en casa), reinícialo: desconéctalo de la corriente 15 segundos, vuelve a conectarlo y espera 2 a 3 minutos.";
 
@@ -133,7 +136,7 @@ public static class Messages
                     ? "Tu equipo está enviando o recibiendo muchos datos y eso está saturando la conexión."
                     : $"Tu equipo está enviando o recibiendo muchos datos (subida {a.Throughput.TxMbps.ToString("0.#", Es)} Mbps, bajada {a.Throughput.RxMbps.ToString("0.#", Es)} Mbps) y eso está saturando la conexión. Suele pasar con OneDrive, descargas o actualizaciones.",
                 [
-                    "Pausa la sincronización de OneDrive: clic en el ícono de la nube junto al reloj → engranaje → «Pausar sincronización».",
+                    "Pausa la sincronización de OneDrive: clic en el ícono de la nube " + OneDriveIconPlace + " → engranaje → «Pausar sincronización».",
                     "Pausa descargas y actualizaciones en curso.",
                     "Cierra videos o transmisiones que tengas abiertos en otras pestañas.",
                 ],

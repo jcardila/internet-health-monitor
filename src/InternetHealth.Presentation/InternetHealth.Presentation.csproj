@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Estado de pantalla (ViewModels) y modo demostración, comunes a Windows (WPF) y Mac (Avalonia).
+       Sin dependencias de interfaz: cada app pone sus propias vistas encima. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>InternetHealth.Presentation</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\InternetHealth.Core\InternetHealth.Core.csproj" />
+  </ItemGroup>
+</Project>

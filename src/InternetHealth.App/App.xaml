@@ -16,6 +16,7 @@
       <BooleanToVisibilityConverter x:Key="BoolToVis" />
       <c:InverseBoolToVisibilityConverter x:Key="InverseBoolToVis" />
       <c:NullOrEmptyToCollapsedConverter x:Key="EmptyToCollapsed" />
+      <c:ResourceByKeyConverter x:Key="ResourceByKey" />
 
       <!-- Íconos de la cadena de conexión (trazos en una caja de 24×24) -->
       <Geometry x:Key="Icon.Device">M4,5 H20 V15 H4 Z M2,18.5 H22</Geometry>

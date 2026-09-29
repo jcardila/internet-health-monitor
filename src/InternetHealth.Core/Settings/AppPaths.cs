@@ -21,8 +21,9 @@ public sealed class AppPaths
     public static IEnumerable<string> SettingsLayers()
     {
         yield return Path.Combine(AppContext.BaseDirectory, "defaults.json");
-        yield return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), AppFolderName, "defaults.json");
+        yield return OperatingSystem.IsMacOS()
+            ? Path.Combine("/Library/Application Support", AppFolderName, "defaults.json")
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), AppFolderName, "defaults.json");
     }
 
     public void AppendError(string message)

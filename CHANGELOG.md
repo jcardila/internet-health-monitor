@@ -3,6 +3,18 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y
 [versionado semántico](https://semver.org/lang/es/).
 
+## [2.1.0] - sin publicar
+
+### Nuevo
+- **Versión para Mac** (macOS 14 o superior, Apple Silicon e Intel): mismo diagnóstico, textos,
+  historial CSV y "Compartir diagnóstico" que en Windows, con ícono en la barra de menús, panel
+  rápido y ventana de detalle. Wi-Fi con CoreWLAN, detección de llamadas por el micrófono (CoreAudio),
+  inicio al iniciar sesión y actualizaciones automáticas desde el mismo release. Ver `docs/MAC.md`.
+- El paso sugerido de OneDrive indica dónde está su ícono en cada sistema (junto al reloj o en la barra de menús).
+
+### Cambiado
+- Los ViewModels y el modo demostración pasan a `InternetHealth.Presentation`, compartido por Windows y Mac.
+
 ## [2.0.0] - 2026-09
 
 Reescritura completa en .NET 10 (WPF). La versión 1 (PowerShell) queda en `legacy/`.

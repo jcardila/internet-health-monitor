@@ -1,6 +1,6 @@
 using InternetHealth.Core.Settings;
 
-namespace InternetHealth.App.ViewModels;
+namespace InternetHealth.Presentation.ViewModels;
 
 public sealed class SettingsViewModel : ObservableObject
 {

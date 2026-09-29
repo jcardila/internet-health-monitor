@@ -1,8 +1,8 @@
-using System.Diagnostics;
 using System.IO;
-using System.Windows;
-using System.Windows.Threading;
-using InternetHealth.App.Views;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Threading;
 using InternetHealth.Core.Diagnosis;
 using InternetHealth.Core.Export;
 using InternetHealth.Core.History;
@@ -10,16 +10,21 @@ using InternetHealth.Core.Model;
 using InternetHealth.Core.Monitoring;
 using InternetHealth.Core.Network;
 using InternetHealth.Core.Settings;
+using InternetHealth.Mac.Interop;
+using InternetHealth.Mac.Views;
 using InternetHealth.Presentation;
 using InternetHealth.Presentation.ViewModels;
-using Microsoft.Win32;
 
-namespace InternetHealth.App.Services;
+namespace InternetHealth.Mac.Services;
 
-/// <summary>Arma y coordina la aplicación: motor, bandeja, ventanas, preferencias y actualizaciones.</summary>
-internal sealed class AppHost
+/// <summary>
+/// Arma y coordina la app en Mac: motor, barra de menús, ventanas, preferencias y actualizaciones.
+/// Es el equivalente de AppHost en Windows; la lógica de diagnóstico es la misma (Core).
+/// </summary>
+internal sealed class MacHost
 {
-    private readonly App _app;
+    private readonly Application _app;
+    private readonly IClassicDesktopStyleApplicationLifetime _lifetime;
     private readonly SingleInstance _instance;
     private readonly bool _background;
     private readonly bool _demo;
@@ -31,24 +36,28 @@ internal sealed class AppHost
     private UserPreferences _prefs = null!;
     private HistoryStore _history = null!;
     private MonitorEngine _engine = null!;
-    private TrayIcon _tray = null!;
+    private MenuBarIcon _menuBar = null!;
+    private Notifier _notifier = null!;
+    private SessionMonitor _session = null!;
     private UpdateService _updates = null!;
     private DashboardViewModel _dashboard = null!;
     private HistoryViewModel _historyVm = null!;
     private SettingsViewModel _settingsVm = null!;
     private MainWindowViewModel _mainVm = null!;
-    private FlyoutWindow? _flyout;
+    private PanelWindow? _panel;
     private MainWindow? _main;
     private DispatcherTimer? _updateTimer;
     private readonly List<IDisposable> _disposables = [];
     private Health _lastTrayHealth = (Health)(-1);
     private string _lastTrayText = "";
-    private bool _uiRefreshQueued;
+    private int _uiRefreshQueued;
     private int _updateFailures;
+    private bool _shuttingDown;
 
-    public AppHost(App app, SingleInstance instance, string[] args, bool firstRun)
+    public MacHost(Application app, IClassicDesktopStyleApplicationLifetime lifetime, SingleInstance instance, string[] args, bool firstRun)
     {
         _app = app;
+        _lifetime = lifetime;
         _instance = instance;
         _background = args.Contains("--background", StringComparer.OrdinalIgnoreCase);
         _demo = args.Contains("--demo", StringComparer.OrdinalIgnoreCase);
@@ -59,7 +68,6 @@ internal sealed class AppHost
     {
         _paths = new AppPaths(_demo ? Path.Combine(Path.GetTempPath(), "InternetHealthMonitorDemo") : null);
         HookGlobalErrors();
-        ThemeManager.Initialize();
 
         _settings = AppSettings.Load(AppPaths.SettingsLayers());
         _prefs = UserPreferences.Load(_paths.PreferencesFile);
@@ -72,50 +80,67 @@ internal sealed class AppHost
         _engine.DetailedLog = _prefs.DetailedLog;
         _engine.Notifications.Enabled = _prefs.NotificationsEnabled;
         _engine.Notifications.DoNotDisturbUntil = _prefs.DoNotDisturbUntil;
-        _engine.Log.Add(DateTimeOffset.Now, $"Monitor de Conexión {_version} iniciado{(_demo ? " (modo demostración)" : "")}.");
+        _engine.Log.Add(DateTimeOffset.Now, $"Monitor de Conexión {_version} para Mac iniciado{(_demo ? " (modo demostración)" : "")}.");
 
         _dashboard = new DashboardViewModel { IsDemo = _demo };
         _historyVm = new HistoryViewModel(_paths);
         _settingsVm = new SettingsViewModel(_prefs, _settings, _version, OnPreferencesChanged);
         _mainVm = new MainWindowViewModel(_dashboard, _historyVm, _settingsVm);
 
-        _tray = new TrayIcon(_demo);
-        _tray.LeftClick += ToggleFlyout;
-        _tray.OpenDetails += () => ShowMain(0);
-        _tray.Share += ShareDiagnostic;
-        _tray.ToggleDoNotDisturb += ToggleDnd;
-        _tray.ToggleStartup += () => { _settingsVm.StartWithWindows = !_settingsVm.StartWithWindows; };
-        _tray.Exit += () => _app.Shutdown();
-        _tray.NotificationClicked += () => ShowFlyout();
-        ThemeManager.ThemeChanged += () =>
+        _notifier = new Notifier();
+        _notifier.Clicked += () => Dispatcher.UIThread.Post(ShowPanel);
+        _notifier.Status += msg => _engine.Log.Add(DateTimeOffset.Now, msg);
+        _engine.Log.Add(DateTimeOffset.Now, $"Avisos: {_notifier.Mode}{(_notifier.StartupError is { } err ? $" ({err})" : "")}.");
+
+        _menuBar = new MenuBarIcon(_demo);
+        _menuBar.OpenPanel += ShowPanel;
+        _menuBar.OpenDetails += () => ShowMain(0);
+        _menuBar.Share += ShareDiagnostic;
+        _menuBar.ToggleDoNotDisturb += ToggleDnd;
+        _menuBar.ToggleStartup += () => { _settingsVm.StartWithWindows = !_settingsVm.StartWithWindows; };
+        _menuBar.Exit += () => _lifetime.Shutdown();
+        _app.ActualThemeVariantChanged += (_, _) =>
         {
-            _tray.ApplyTheme(ThemeManager.IsDark);
+            _menuBar.RefreshIcons();
             _dashboard.RefreshThemeBindings();
         };
-        ThemeManager.TaskbarThemeChanged += () => _tray.RefreshIcons();
 
         _engine.SnapshotUpdated += OnSnapshot;
-        _engine.NotificationRequested += n => _app.Dispatcher.BeginInvoke(() => OnNotification(n));
+        _engine.NotificationRequested += n => Dispatcher.UIThread.Post(() => OnNotification(n));
         _engine.Log.Added += e =>
         {
-            if (_main is not null) _app.Dispatcher.BeginInvoke(() => _mainVm.AddLog(e));
+            if (_main is not null) Dispatcher.UIThread.Post(() => _mainVm.AddLog(e));
         };
-        _history.MinuteWritten += _row =>
+        _history.MinuteWritten += row =>
         {
             if (_main is not null && _mainVm.SelectedTab == 1)
-                _app.Dispatcher.BeginInvoke(() => { _ = _historyVm.LoadAsync(); });
+                Dispatcher.UIThread.Post(() => { _ = _historyVm.LoadAsync(); });
         };
         _mainVm.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainWindowViewModel.SelectedTab) && _mainVm.SelectedTab == 1) _ = _historyVm.LoadAsync();
         };
 
-        _instance.ListenForActivation(() => _app.Dispatcher.BeginInvoke(() => ShowMain(0)));
-        SystemEvents.SessionSwitch += OnSessionSwitch;
-        SystemEvents.PowerModeChanged += OnPowerModeChanged;
+        // Abrir la app otra vez (desde Aplicaciones, Launchpad o Spotlight) muestra la ventana.
+        _instance.ListenForActivation(() => Dispatcher.UIThread.Post(() => ShowMain(0)));
+        if (_app.TryGetFeature(typeof(IActivatableLifetime)) is IActivatableLifetime activatable)
+            activatable.Activated += (_, e) =>
+            {
+                if (e.Kind == ActivationKind.Reopen && !_shuttingDown) ShowMain(0);
+            };
 
-        if (!_demo) StartupManager.Set(_prefs.StartWithWindows);
-        SyncTrayMenu();
+        _session = new SessionMonitor();
+        _session.Locked += () => { if (_engine.Latest?.Call.InCall != true) _engine.Pause(); };
+        _session.Unlocked += _engine.Resume;
+        _session.Woke += () =>
+        {
+            _history.Flush();
+            _engine.RequestReset("El equipo salió de suspensión", TimeSpan.FromSeconds(3));
+        };
+        _disposables.Add(_session);
+
+        if (!_demo) LaunchAgent.Set(_prefs.StartWithWindows);
+        SyncMenu();
         _engine.Start();
 
         SetupUpdates();
@@ -124,13 +149,13 @@ internal sealed class AppHost
         {
             _prefs.FirstRunCompleted = true;
             _prefs.Save(_paths.PreferencesFile);
-            _tray.ShowNotification("Monitor de Conexión está activo",
-                "Lo encontrarás junto al reloj. Te avisaremos si algo en tu conexión puede afectar tus reuniones.", true);
-            _app.Dispatcher.BeginInvoke(() => ShowFlyout(), DispatcherPriority.ApplicationIdle);
+            Notify("Monitor de Conexión está activo",
+                "Lo encontrarás en la barra de menús, arriba a la derecha. Te avisaremos si algo en tu conexión puede afectar tus reuniones.");
+            Dispatcher.UIThread.Post(ShowPanel, DispatcherPriority.ApplicationIdle);
         }
         else if (!_background)
         {
-            _app.Dispatcher.BeginInvoke(() => ShowMain(0), DispatcherPriority.ApplicationIdle);
+            Dispatcher.UIThread.Post(() => ShowMain(0), DispatcherPriority.ApplicationIdle);
         }
     }
 
@@ -145,17 +170,15 @@ internal sealed class AppHost
             };
         }
 
-        var pinger = new SystemPinger();
-        var network = new WindowsNetworkContextProvider();
+        var pinger = new MacPinger();
         var captive = new HttpCaptivePortalChecker();
         _disposables.Add(pinger);
-        _disposables.Add(network);
         _disposables.Add(captive);
         return new MonitorDependencies
         {
             Pinger = pinger,
             TcpProber = new SystemTcpProber(),
-            Network = network,
+            Network = new MacNetworkContextProvider(),
             CaptivePortal = captive,
             Throughput = new SystemThroughputMeter(),
             CallDetector = new MicrophoneCallDetector(),
@@ -167,21 +190,22 @@ internal sealed class AppHost
     private void OnSnapshot(MonitorSnapshot s)
     {
         // Se llama en el hilo del motor. Evitamos encolar trabajo si la UI aún no procesó el anterior.
-        if (_uiRefreshQueued) return;
-        _uiRefreshQueued = true;
-        _app.Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
+        if (Interlocked.Exchange(ref _uiRefreshQueued, 1) == 1) return;
+        Dispatcher.UIThread.Post(() =>
         {
-            _uiRefreshQueued = false;
+            Interlocked.Exchange(ref _uiRefreshQueued, 0);
             var latest = _engine.Latest ?? s;
-            UpdateTray(latest);
-            bool flyoutVisible = _flyout?.IsVisible == true;
-            bool mainVisible = _main is not null && _main.IsVisible && _main.WindowState != WindowState.Minimized;
-            if (flyoutVisible || mainVisible)
+            UpdateMenuBar(latest);
+            bool panelVisible = _panel?.IsVisible == true;
+            bool mainVisible = IsMainVisible;
+            if (panelVisible || mainVisible)
                 _dashboard.Apply(latest, _engine, includeDetails: mainVisible);
-        });
+        }, DispatcherPriority.Background);
     }
 
-    private void UpdateTray(MonitorSnapshot s)
+    private bool IsMainVisible => _main is not null && _main.IsVisible && _main.WindowState != WindowState.Minimized;
+
+    private void UpdateMenuBar(MonitorSnapshot s)
     {
         var d = s.Stable;
         string text = d.Code == DiagnosisCode.Checking ? d.Text.TrayText
@@ -189,41 +213,40 @@ internal sealed class AppHost
         if (d.Severity == _lastTrayHealth && text == _lastTrayText) return;
         _lastTrayHealth = d.Severity;
         _lastTrayText = text;
-        _tray.Update(d.Severity, text);
+        _menuBar.Update(d.Severity, text);
     }
 
     private void OnNotification(NotificationRequest n)
     {
         if (_main?.IsActive == true && _main.WindowState != WindowState.Minimized) return; // ya lo está viendo
-        _tray.ShowNotification(n.Title, n.Message, n.IsRecovery);
+        Notify(n.Title, n.Message);
     }
+
+    private void Notify(string title, string message) => _notifier.Show(_demo ? "[Demo] " + title : title, message);
 
     // ---------- Ventanas ----------
 
-    private FlyoutWindow EnsureFlyout()
+    private PanelWindow EnsurePanel()
     {
-        if (_flyout is not null) return _flyout;
-        _flyout = new FlyoutWindow { DataContext = _dashboard };
-        _flyout.DetailsRequested += ShowMain;
-        _flyout.ShareRequested += ShareDiagnostic;
-        _flyout.CaptivePortalRequested += OpenCaptivePortal;
-        _flyout.LocationSettingsRequested += () => OpenUri("ms-settings:privacy-location");
-        _flyout.IsVisibleChanged += (_, _) => UpdateUiVisibility();
-        return _flyout;
+        if (_panel is not null) return _panel;
+        _panel = new PanelWindow { DataContext = _dashboard };
+        _panel.DetailsRequested += ShowMain;
+        _panel.ShareRequested += ShareDiagnostic;
+        _panel.CaptivePortalRequested += OpenCaptivePortal;
+        _panel.LocationRequested += RequestLocation;
+        _panel.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == Visual.IsVisibleProperty) UpdateUiVisibility();
+        };
+        return _panel;
     }
 
-    private void ToggleFlyout()
+    private void ShowPanel()
     {
-        var f = EnsureFlyout();
-        if (!f.IsVisible) RefreshNow(includeDetails: false);
-        f.Toggle();
-    }
-
-    private void ShowFlyout()
-    {
-        var f = EnsureFlyout();
+        var p = EnsurePanel();
         RefreshNow(includeDetails: false);
-        if (!f.IsVisible) f.ShowNearTray();
+        if (!p.IsVisible) p.ShowNearMenuBar();
+        else p.Activate();
     }
 
     private void ShowMain(int tab)
@@ -233,25 +256,26 @@ internal sealed class AppHost
             _main = new MainWindow { DataContext = _mainVm };
             _main.ShareRequested += ShareDiagnostic;
             _main.CopySummaryRequested += CopySummary;
-            _main.WifiSettingsRequested += () => OpenUri("ms-settings:network-wifi");
+            _main.WifiSettingsRequested += () => OpenUri("x-apple.systempreferences:com.apple.wifi-settings-extension");
             _main.CaptivePortalRequested += OpenCaptivePortal;
             _main.SupportRequested += OpenSupport;
             _main.CopyLogRequested += CopyLog;
             _main.DataFolderRequested += () => OpenUri(_paths.DataRoot, ensureDirectory: true);
-            _main.LocationSettingsRequested += () => OpenUri("ms-settings:privacy-location");
+            _main.LocationRequested += RequestLocation;
             _main.CheckUpdatesRequested += () => _ = CheckUpdatesAsync(userInitiated: true);
-            _main.IsVisibleChanged += (_, _) => UpdateUiVisibility();
-            _main.StateChanged += (_, _) => UpdateUiVisibility();
+            _main.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == Visual.IsVisibleProperty || e.Property == Window.WindowStateProperty) UpdateUiVisibility();
+            };
             _main.Closed += (_, _) =>
             {
                 _main = null;
                 _mainVm.Log.Clear();
                 UpdateUiVisibility();
+                Dock.Hide();
                 // Liberar la memoria de la ventana: la app vuelve a su mínimo consumo.
-                _app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () =>
-                {
-                    GC.Collect(2, GCCollectionMode.Aggressive, blocking: true, compacting: true);
-                });
+                Dispatcher.UIThread.Post(() => GC.Collect(2, GCCollectionMode.Aggressive, blocking: true, compacting: true),
+                    DispatcherPriority.ApplicationIdle);
             };
             _mainVm.ReloadLog(_engine.Log.Snapshot());
             _settingsVm.Refresh();
@@ -260,6 +284,8 @@ internal sealed class AppHost
         _mainVm.SelectedTab = tab;
         if (tab == 1) _ = _historyVm.LoadAsync();
         RefreshNow(includeDetails: true);
+        // Con la ventana abierta la app aparece en el Dock y en Cmd+Tab, como cualquier ventana.
+        Dock.Show();
         if (!_main.IsVisible) _main.Show();
         if (_main.WindowState == WindowState.Minimized) _main.WindowState = WindowState.Normal;
         _main.Activate();
@@ -271,11 +297,7 @@ internal sealed class AppHost
         _dashboard.DndActive = _prefs.DoNotDisturbUntil is { } dnd && dnd > DateTimeOffset.Now;
     }
 
-    private void UpdateUiVisibility()
-    {
-        bool mainVisible = _main is not null && _main.IsVisible && _main.WindowState != WindowState.Minimized;
-        _engine.UiVisible = mainVisible || _flyout?.IsVisible == true;
-    }
+    private void UpdateUiVisibility() => _engine.UiVisible = IsMainVisible || _panel?.IsVisible == true;
 
     // ---------- Acciones ----------
 
@@ -291,17 +313,17 @@ internal sealed class AppHost
                 _paths, _engine.Latest, _engine.Log, _version, now);
 
             if (_engine.Latest is { } s)
-                TrySetClipboard(SummaryText.Build(s, HistoryStore.Read(_paths, now.AddHours(-1), now)));
+                Shell.CopyToClipboard(SummaryText.Build(s, HistoryStore.Read(_paths, now.AddHours(-1), now)));
 
-            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{zip}\"") { UseShellExecute = true });
-            _tray.ShowNotification("Diagnóstico listo",
-                "Se guardó en Descargas y el resumen quedó copiado: pégalo en Teams o en un correo y adjunta el archivo.", true);
+            Shell.Open(zip, reveal: true); // lo muestra seleccionado en el Finder
+            Notify("Diagnóstico listo",
+                "Se guardó en Descargas y el resumen quedó copiado: pégalo en Teams o en un correo y adjunta el archivo.");
             _engine.Log.Add(now, "Diagnóstico exportado: " + zip);
         }
         catch (Exception ex)
         {
             _paths.AppendError("Exportar: " + ex);
-            MessageBox.Show("No se pudo crear el diagnóstico:\n" + ex.Message, "Monitor de Conexión", MessageBoxButton.OK, MessageBoxImage.Warning);
+            Notify("No se pudo crear el diagnóstico", ex.Message);
         }
     }
 
@@ -309,22 +331,14 @@ internal sealed class AppHost
     {
         if (_engine.Latest is not { } s) return;
         var now = DateTimeOffset.Now;
-        if (TrySetClipboard(SummaryText.Build(s, HistoryStore.Read(_paths, now.AddHours(-1), now))))
-            _tray.ShowNotification("Resumen copiado", "Pégalo en un chat de Teams o en un correo.", true);
+        if (Shell.CopyToClipboard(SummaryText.Build(s, HistoryStore.Read(_paths, now.AddHours(-1), now))))
+            Notify("Resumen copiado", "Pégalo en un chat de Teams o en un correo.");
     }
 
     private void CopyLog() =>
-        TrySetClipboard(string.Join(Environment.NewLine, _engine.Log.Snapshot().Select(e => e.ToString())));
+        Shell.CopyToClipboard(string.Join(Environment.NewLine, _engine.Log.Snapshot().Select(e => e.ToString())));
 
-    private static bool TrySetClipboard(string text)
-    {
-        for (int i = 0; i < 3; i++)
-        {
-            try { Clipboard.SetText(text); return true; }
-            catch { Thread.Sleep(50); } // el portapapeles puede estar ocupado por otra app
-        }
-        return false;
-    }
+    private void RequestLocation() => _engine.Log.Add(DateTimeOffset.Now, LocationPermission.Request());
 
     private void OpenCaptivePortal() => OpenUri("http://www.msftconnecttest.com/redirect");
 
@@ -340,7 +354,7 @@ internal sealed class AppHost
         try
         {
             if (ensureDirectory) Directory.CreateDirectory(target);
-            Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
+            Shell.Open(target);
         }
         catch (Exception ex)
         {
@@ -355,7 +369,7 @@ internal sealed class AppHost
         _engine.Notifications.DoNotDisturbUntil = _prefs.DoNotDisturbUntil;
         _prefs.Save(_paths.PreferencesFile);
         _dashboard.DndActive = !active;
-        SyncTrayMenu();
+        SyncMenu();
     }
 
     private void OnPreferencesChanged()
@@ -363,29 +377,15 @@ internal sealed class AppHost
         _engine.CallDetectionEnabled = _prefs.CallDetectionEnabled;
         _engine.DetailedLog = _prefs.DetailedLog;
         _engine.Notifications.Enabled = _prefs.NotificationsEnabled;
-        if (!_demo) StartupManager.Set(_prefs.StartWithWindows);
+        if (!_demo) LaunchAgent.Set(_prefs.StartWithWindows);
         _prefs.Save(_paths.PreferencesFile);
-        SyncTrayMenu();
+        SyncMenu();
     }
 
-    private void SyncTrayMenu()
+    private void SyncMenu()
     {
         bool dnd = _prefs.DoNotDisturbUntil is { } until && until > DateTimeOffset.Now;
-        _tray.SetMenuState(dnd, _prefs.StartWithWindows);
-    }
-
-    // ---------- Energía y sesión ----------
-
-    private void OnSessionSwitch(object? sender, SessionSwitchEventArgs e)
-    {
-        if (e.Reason == SessionSwitchReason.SessionLock && _engine.Latest?.Call.InCall != true) _engine.Pause();
-        else if (e.Reason == SessionSwitchReason.SessionUnlock) _engine.Resume();
-    }
-
-    private void OnPowerModeChanged(object? sender, PowerModeChangedEventArgs e)
-    {
-        if (e.Mode == PowerModes.Suspend) { _history.Flush(); _engine.Pause(); }
-        else if (e.Mode == PowerModes.Resume) _engine.Resume();
+        _menuBar.SetMenuState(dnd, _prefs.StartWithWindows);
     }
 
     // ---------- Actualizaciones ----------
@@ -439,7 +439,6 @@ internal sealed class AppHost
         if (!userInitiated) TryApplyPendingUpdate();
         else if (_updateTimer is not null)
         {
-            // Búsqueda manual: reprogramar según el resultado (p. ej. instalar en 30 min lo descargado).
             _updateTimer.Stop();
             ScheduleNextUpdateCheck(atStartup: false);
         }
@@ -448,11 +447,12 @@ internal sealed class AppHost
     /// <summary>Instala solo si no hay una llamada en curso ni ventanas abiertas (reinicio en ~2 s, invisible).</summary>
     private void TryApplyPendingUpdate()
     {
-        if (!_updates.HasPendingUpdate || _engine.Latest?.Call.InCall == true || _main is not null || _flyout?.IsVisible == true) return;
-        // ApplyUpdatesAndRestart termina el proceso sin pasar por Application.Exit: cerramos todo antes.
+        if (!_updates.HasPendingUpdate || _engine.Latest?.Call.InCall == true || _main is not null || _panel?.IsVisible == true) return;
+        // ApplyUpdatesAndRestart termina el proceso sin pasar por el cierre normal: cerramos todo antes.
         _history.Flush();
         try { _engine.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(3)); } catch { /* ignorar */ }
-        _tray.Dispose();
+        _menuBar.Dispose();
+        _instance.Dispose(); // libera el bloqueo para que la versión nueva pueda arrancar
         _updates.ApplyAndRestart();
     }
 
@@ -460,7 +460,7 @@ internal sealed class AppHost
 
     private void HookGlobalErrors()
     {
-        _app.DispatcherUnhandledException += (_, e) =>
+        Dispatcher.UIThread.UnhandledException += (_, e) =>
         {
             _paths.AppendError("UI: " + e.Exception);
             e.Handled = true; // una app residente no debe cerrarse por un error de interfaz
@@ -475,11 +475,29 @@ internal sealed class AppHost
 
     public void Shutdown()
     {
-        SystemEvents.SessionSwitch -= OnSessionSwitch;
-        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+        _shuttingDown = true;
         _updateTimer?.Stop();
+        try { _history?.Flush(); } catch { /* ignorar */ }
         try { _engine?.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(3)); } catch { /* ignorar */ }
-        _tray?.Dispose();
+        _menuBar?.Dispose();
         foreach (var d in _disposables) { try { d.Dispose(); } catch { /* ignorar */ } }
+    }
+}
+
+/// <summary>Muestra la app en el Dock solo mientras la ventana de detalle está abierta.</summary>
+internal static class Dock
+{
+    public static void Show() => SetPolicy(0);  // NSApplicationActivationPolicyRegular
+    public static void Hide() => SetPolicy(1);  // NSApplicationActivationPolicyAccessory
+
+    private static void SetPolicy(nint policy)
+    {
+        try
+        {
+            var app = ObjC.Send(ObjC.objc_getClass("NSApplication"), "sharedApplication");
+            ObjC.SendVoid(app, "setActivationPolicy:", policy);
+            if (policy == 0) ObjC.SendVoid(app, "activateIgnoringOtherApps:", 1);
+        }
+        catch { /* no crítico */ }
     }
 }

@@ -1,6 +1,7 @@
 # Monitor de Conexión (Internet Health Monitor) v2
 
-Aplicación de Windows que vive junto al reloj y le dice a cualquier persona, en palabras simples,
+Aplicación para Windows y Mac que vive junto al reloj (o en la barra de menús del Mac) y le dice a
+cualquier persona, en palabras simples,
 **si su conexión está bien para una reunión y, si no, dónde está el problema y qué hacer**.
 
 Tener "todas las rayitas del Wi-Fi" solo significa que el equipo está conectado al punto de acceso.
@@ -31,13 +32,18 @@ de esta red está inestable"*, *"El problema no está en tu equipo ni en tu red"
 ```
 src/InternetHealth.Core    Lógica sin dependencias de Windows: mediciones, estadísticas, MOS,
                            diagnóstico, histéresis, avisos, historial CSV, reporte HTML.
+src/InternetHealth.Presentation  Estado de pantalla (ViewModels) y modo demostración, comunes a
+                           Windows y Mac. Sin dependencias de interfaz.
 src/InternetHealth.App     Aplicación WPF (.NET 10): bandeja, panel, ventana de detalle,
                            Wi-Fi (Native Wifi API), detección de llamadas, inicio automático,
                            actualizaciones (Velopack).
+src/InternetHealth.Mac     Aplicación para Mac (Avalonia): barra de menús, panel, ventana de detalle,
+                           Wi-Fi (CoreWLAN), llamadas (CoreAudio), inicio con launchd. Ver docs/MAC.md.
 tests/                     Pruebas del núcleo (dotnet run, sin dependencias externas).
-build/build.ps1            Pruebas + publicación + instalador.
+build/build.ps1            Pruebas + publicación + instalador (Windows).
+build/build-mac.sh         Pruebas + publicación + .app + instalador .pkg (Mac).
 .github/workflows          CI: compila, prueba y publica releases con cada etiqueta v*.
-docs/                      Despliegue sin Intune y uso de los datos en Power BI.
+docs/                      Despliegue sin Intune, versión para Mac y uso de los datos en Power BI.
 legacy/                    Versión 1 (PowerShell), solo como referencia.
 ```
 
@@ -51,6 +57,8 @@ dotnet run --project src/InternetHealth.App                        # abrir la ap
 dotnet run --project src/InternetHealth.App -- --demo              # modo demostración (simula fallas)
 .\build\build.ps1 -Version 2.0.0 -Pack                            # instalador + paquetes de actualización
 ```
+
+En Mac: ver [docs/MAC.md](docs/MAC.md) (`./build/build-mac.sh`, `dotnet run --project src/InternetHealth.Mac -- --demo`).
 
 `--demo` recorre escenarios simulados (todo bien → Wi-Fi débil → falla del proveedor → equipo
 saturando la red → sin internet). Sirve para capacitar al equipo o tomar capturas.

@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Versión para Mac: la misma lógica (Core) y el mismo estado de pantalla (Presentation) que en
+       Windows, con interfaz Avalonia y una capa propia de macOS (CoreWLAN, CoreAudio, launchd). -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>InternetHealthMonitor</AssemblyName>
+    <RootNamespace>InternetHealth.Mac</RootNamespace>
+    <AssemblyTitle>Monitor de Conexión</AssemblyTitle>
+    <Description>Monitorea la calidad de tu conexión y te dice, en palabras simples, dónde está el problema.</Description>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <SatelliteResourceLanguages>es</SatelliteResourceLanguages>
+    <!-- CA2101: las cadenas de P/Invoke ya van como UTF-8 explícito (LPUTF8Str), que es lo que usa macOS. -->
+    <NoWarn>$(NoWarn);CA2101</NoWarn>
+
+    <!-- Proceso residente: priorizamos memoria baja sobre rendimiento máximo -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <TieredPGO>true</TieredPGO>
+    <UseSystemResourceKeys>false</UseSystemResourceKeys>
+    <!-- Se publica autocontenido (no requiere instalar .NET ni permisos de administrador) -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">osx-arm64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Memoria de proceso residente: en los chips de Apple .NET calcula un presupuesto de generación 0
+         muy grande (por la caché del procesador). Lo fijamos en 4 MB y pedimos al GC que priorice memoria. -->
+    <RuntimeHostConfigurationOption Include="System.GC.Gen0Size" Value="4194304" />
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.22" />
+    <!-- Igual que en Windows: si subes Velopack, sube también la herramienta vpk (build-mac.sh). -->
+    <PackageReference Include="Velopack" Version="1.2.158" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\InternetHealth.Core\InternetHealth.Core.csproj" />
+    <ProjectReference Include="..\InternetHealth.Presentation\InternetHealth.Presentation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- La configuración de la organización es la misma para Windows y Mac -->
+    <None Include="..\InternetHealth.App\defaults.json" Link="defaults.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+</Project>

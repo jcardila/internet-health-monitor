@@ -1,5 +1,6 @@
-# Compila y prueba en cada cambio. Con una etiqueta v* (p. ej. v2.0.1) además crea el instalador
-# de Velopack y lo sube a GitHub Releases como BORRADOR. Al publicarlo a mano, pasa a ser el
+# Compila y prueba en cada cambio (Windows y Mac). Con una etiqueta v* (p. ej. v2.0.1) además crea
+# los instaladores de Velopack y los sube a GitHub Releases como BORRADOR (el de Mac se agrega al
+# mismo release que el de Windows). Al publicarlo a mano, pasa a ser el
 # "latest" y los equipos instalados se actualizan solos desde
 # https://github.com/jcardila/internet-health-monitor/releases/latest/download
 name: build
@@ -50,3 +51,42 @@ jobs:
           vpk upload github --outputDir artifacts/releases `
             --repoUrl "${{ github.server_url }}/${{ github.repository }}" --token "${{ secrets.GITHUB_TOKEN }}" `
             --tag "${{ github.ref_name }}" --releaseName "Monitor de Conexión $version"
+
+  mac:
+    # Después del de Windows: con una etiqueta, el release ya existe y los paquetes de Mac se agregan a él.
+    needs: build
+    runs-on: macos-latest
+    env:
+      DOTNET_NOLOGO: "1"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Compilar la app de Mac
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: dotnet build src/InternetHealth.Mac/InternetHealth.Mac.csproj -c Release -nologo
+
+      - name: Instaladores y paquetes de actualización (Apple Silicon e Intel)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          for arch in arm64 x64; do
+            ./build/build-mac.sh --version "$version" --arch "$arch" --pack --skip-tests \
+              --github-repo "${{ github.server_url }}/${{ github.repository }}" --github-token "${{ secrets.GITHUB_TOKEN }}"
+          done
+
+      - name: Subir a GitHub Releases (mismo borrador que Windows)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          version="${GITHUB_REF_NAME#v}"
+          for pair in arm64:osx x64:osx-x64; do
+            arch="${pair%%:*}"; channel="${pair#*:}"
+            vpk upload github --outputDir "artifacts/releases-mac/$arch" --channel "$channel" --merge \
+              --repoUrl "${{ github.server_url }}/${{ github.repository }}" --token "${{ secrets.GITHUB_TOKEN }}" \
+              --tag "${{ github.ref_name }}" --releaseName "Monitor de Conexión $version"
+          done

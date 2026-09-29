@@ -4,7 +4,7 @@ Guía para trabajar en este repositorio. Léela completa antes de cambiar códig
 
 ## Qué es y para quién
 
-App de Windows que vive en la bandeja del sistema y le dice a cualquier persona de Grupo Ardisa
+App de Windows (y, desde la 2.1, de Mac) que vive en la bandeja del sistema (en Mac, la barra de menús) y le dice a cualquier persona de Grupo Ardisa
 (~400 personas, muchas sin conocimientos técnicos) **si su conexión está bien para una reunión y,
 si no, dónde está el problema y qué hacer**. Nace de un problema real: la gente cree que "tener
 todas las rayitas del Wi-Fi" significa que su internet está bien.
@@ -19,8 +19,11 @@ todas las rayitas del Wi-Fi" significa que su internet está bien.
 ## Restricciones del negocio (no cambiar sin preguntar)
 
 - **Sin Intune**: las licencias de M365 son Basic. La distribución es por instalador por usuario
-  (Velopack), sin permisos de administrador, con actualizaciones automáticas desde una URL
-  (`updateFeedUrl`).
+  (Velopack), sin permisos de administrador, con actualizaciones automáticas desde **GitHub
+  Releases** (`updateFeedUrl` en `defaults.json`). El repositorio es **público**: nada de
+  secretos, datos de empleados ni configuraciones internas sensibles en el código.
+- **Sin firma de código** por ahora (decisión de Juan). El instalador muestra "Windows protegió su
+  PC" y hay que pulsar *Más información → Ejecutar de todas formas*.
 - **Datos solo locales**: sin telemetría ni envío a servidores. El usuario decide cuándo compartir
   con el botón "Compartir diagnóstico" (.zip con reporte HTML + CSV + resumen copiado para Teams).
 - El formato de los CSV es **estable y común a todos los equipos**, pensado para consolidar sedes
@@ -41,7 +44,17 @@ src/InternetHealth.Core    net10.0, SIN dependencias de Windows ni NuGet. Toda l
   Monitoring/              MonitorEngine (bucle en segundo plano), MonitorSnapshot, LiveLog
   History/                 HistoryStore (CSV por minuto + eventos.csv), MinuteRow, Csv
   Export/                  DiagnosticExporter (.zip), ReportBuilder (HTML), SummaryText
-  Settings/                AppSettings (capas defaults.json), UserPreferences, AppPaths
+  Settings/                AppSettings (capas defaults.json), UserPreferences, AppPaths,
+                           UpdateSchedule (cuándo buscar actualizaciones)
+src/InternetHealth.Presentation  net10.0, sin interfaz: ViewModels (Dashboard, History, Settings,
+                           MainWindow) y DemoNetwork, compartidos por Windows y Mac. El ícono de cada
+                           eslabón es una clave ("Icon.Wifi") que cada app resuelve en sus recursos.
+src/InternetHealth.Mac     net10.0 (osx-arm64/x64), Avalonia 11.3 + Velopack. Ver docs/MAC.md.
+  Services/                MacHost (equivale a AppHost), MenuBarIcon, MacPinger (TTL por socket ICMP),
+                           MacNetworkContextProvider, MicrophoneCallDetector (CoreAudio), Notifier,
+                           LaunchAgent, SessionMonitor, LocationPermission, UpdateService
+  Interop/                 ObjC (objc_msgSend, bloques), MacNative (CoreAudio, CoreGraphics), CoreWlanClient
+  Views/ Controls/         PanelWindow, MainWindow, ChainView, Sparkline, HistoryChart, StatusBadge
 src/InternetHealth.App     net10.0-windows, WPF + NotifyIcon de WinForms, Velopack.
   Program.cs               Main propio: Velopack → instancia única → cultura → App
   Services/                AppHost (orquesta todo), TrayIcon(+Renderer), ThemeManager,
@@ -51,9 +64,13 @@ src/InternetHealth.App     net10.0-windows, WPF + NotifyIcon de WinForms, Velopa
   ViewModels/ Views/ Controls/ Themes/
 tests/InternetHealth.Core.Tests   Mini framework propio ([Test]), sin xUnit (ver "Aprendizajes")
 build/build.ps1            Pruebas + publish autocontenido + instalador Velopack (-Pack)
+build/build-mac.sh         Mac: pruebas + publish + .app firmado ad hoc (+ .pkg de Velopack con --pack)
+build/mac/                 Info.plist (LSUIElement, textos de permiso de ubicación) y AppIcon.icns
 build/compilar-local.cmd   Doble clic: instala el SDK si falta, prueba, compila y abre --demo
-.github/workflows/build.yml  CI en windows-latest; publica un release con cada etiqueta v*
-docs/                      DESPLIEGUE.md (sin Intune) y DATOS-Y-POWERBI.md (esquema CSV)
+.github/workflows/build.yml  CI: pruebas y compilación en Windows y Mac en cada push; con una etiqueta v*
+                           arma los instaladores y los sube al mismo borrador de GitHub Releases
+                           (el job de Mac corre después y usa `vpk upload github --merge`)
+docs/                      DESPLIEGUE.md (sin Intune), MAC.md y DATOS-Y-POWERBI.md (esquema CSV)
 legacy/                    v1 en PowerShell, solo como referencia. No se mantiene.
 ```
 
@@ -64,14 +81,42 @@ dotnet run --project tests/InternetHealth.Core.Tests -c Release   # pruebas (có
 dotnet run --project tests/InternetHealth.Core.Tests -- Diagnosis # filtra pruebas por nombre
 dotnet build src/InternetHealth.App -c Debug
 dotnet run --project src/InternetHealth.App -- --demo             # red simulada
-.\build\build.ps1 -Version 2.0.1 -Pack                            # instalador + feed de actualizaciones
+.\build\build.ps1 -Version 2.0.1 -Pack                            # instalador local en artifacts\releases
 ```
+
+En Mac (`brew install dotnet`):
+
+```bash
+dotnet run --project src/InternetHealth.Mac -- --demo              # sin .app: avisos por AppleScript, sin permiso de ubicación
+./build/build-mac.sh --skip-tests                                  # .app en artifacts/mac/arm64/
+./build/build-mac.sh --version 2.1.0 --pack [--arch x64]           # + .pkg en artifacts/releases-mac/<arch>
+dotnet build src/InternetHealth.App                                # WPF también compila en Mac (EnableWindowsTargeting)
+```
+
+## Publicar una versión (flujo acordado)
+
+1. Cambios en `dev` → pruebas en verde → llevar a `main` (hasta ahora, avance rápido:
+   `git branch -f dev main` después de cada commit en `main` para mantenerlas iguales).
+2. Subir la versión en `CHANGELOG.md`. Versionado semántico: 2.0.x arreglos, 2.x.0 funciones.
+3. `git tag v2.0.1` y `git push origin v2.0.1`. **Esperar a que el CI de `main` esté en verde
+   antes de etiquetar** (la primera vez se etiquetó un commit con una prueba rota).
+4. CI: pruebas → `build.ps1 -Pack -GithubRepo …` (descarga el release anterior para crear el
+   delta) → `vpk upload github` como borrador.
+5. Juan revisa el borrador y pulsa *Publish release*. Solo entonces llega a los equipos (en ≤ 24 h).
+   Los borradores y pre-releases no son "latest" y nunca llegan a nadie.
+6. Verificación rápida tras publicar:
+   `Invoke-RestMethod https://github.com/jcardila/internet-health-monitor/releases/latest/download/releases.win.json`
+   debe mostrar la versión nueva.
+
+Nunca reutilices un número de versión ya publicado: Velopack no actualiza a la "misma" versión.
+Si un release sale mal, se publica uno nuevo (2.0.2), no se reemplaza.
 
 Argumentos de la app: `--background` (inicio automático, sin ventanas), `--demo` (red simulada:
 todo bien → Wi-Fi débil → proveedor → equipo saturado → sin internet; además finge una llamada de
 Teams la mitad del tiempo; los datos van a `%TEMP%\InternetHealthMonitorDemo`).
 
-La compilación de WPF **solo funciona en Windows**. En Linux solo compilan y se prueban Core y Tests.
+La app WPF solo **corre** en Windows, pero **compila** en Mac con NuGet disponible (sirve para
+verificar cambios en Presentation). En la nube (Linux sin NuGet) solo compilan Core y Tests.
 
 ## Principios de diseño del diagnóstico (lo más importante)
 
@@ -158,6 +203,50 @@ La compilación de WPF **solo funciona en Windows**. En Linux solo compilan y se
 - Velopack está fijado en **1.2.158**, igual que la herramienta `vpk` (`build.ps1 -VpkVersion`).
   Antes estaba en `0.0.*`, que resolvía a la 0.0.1298 (muy vieja: la serie actual es 1.x). Si
   subes una, sube la otra. `vpk pack` necesita `--runtime win-x64` o marca el paquete como x86.
+- **Horas en los CSV**: al leer, reconstruye el instante con la columna UTC (`minute_utc`,
+  `time_utc`), no con la zona horaria del equipo que lee. Leer la hora local con la zona del
+  lector corría las filas 5 h en GitHub Actions (servidores en UTC) y rompió la prueba de
+  historial. Las pruebas que dependan de la zona horaria deben usar un offset distinto al de
+  Colombia (p. ej. +3) para fallar también en este PC.
+
+**Mac (Avalonia + macOS)**
+- `Ping` de .NET en macOS informa el **destino** como origen de un TtlExpired: el primer salto
+  "del proveedor" salía igual al router. `MacPinger` usa un socket ICMP DGRAM propio (sin admin)
+  para los pings con TTL. macOS entrega la cabecera IP con el ICMP.
+- Sin firma de Apple, macOS 26 rechaza UNUserNotificationCenter ("Notifications are not allowed
+  for this application"), aunque la app esté en ~/Applications. `Notifier` cae a AppleScript
+  (sale como Editor de Scripts). Se ve en el registro técnico. Se arregla con Developer ID.
+- La barra de menús de macOS 26 cambia de claro a oscuro según el fondo de pantalla, no según el
+  tema: el color del globo se lee de la ventana del NSStatusItem (`MenuBarAppearance`), cada 5 s.
+- Las `utun` existen siempre (iCloud…): VPN solo si una utun/ipsec/ppp tiene IPv4.
+- La carpeta del repo está en OneDrive: agrega atributos extendidos que `codesign` rechaza →
+  `xattr -cr` antes de firmar. Pero **no** borres xattr después de firmar: la firma de las .dll de
+  Contents/MacOS vive en atributos extendidos (copiar con `ditto`, no con `cp` + `xattr -c`).
+- Memoria: en chips Apple .NET usa un gen0 enorme; `System.GC.Gen0Size`=4 MB y ConserveMemory=5
+  (csproj de Mac) más el dibujo por CPU (`AvaloniaNativeRenderingMode.Software`, Metal retenía
+  ~35 MB) dejan ~68 MB en reposo sin ventanas y ~100 MB tras abrir/cerrar la ventana (antes 160).
+- OneDrive (File Provider) a veces bloquea escribir .dll en bin/ ("Access denied" persistente):
+  build-mac.sh compila en una copia en $TMPDIR y trae el .app con `ditto`.
+- `vpk pack` en Mac: `--packTitle` con "ó" rompe pkgbuild; la carpeta es "Monitor de Conexion.app"
+  y el nombre visible sale de es.lproj/InfoPlist.strings. `--bundleId` y `--plist` no se pueden juntar.
+- Si el globo "desaparece": en MacBook con muesca, los íconos que no caben quedan ocultos (la ventana
+  del ítem mide 0×0). No es un error de la app.
+- Para ver la app con computer-use se concede por bundle id `com.jcardila.internethealthmonitor`
+  (solo existe con el .app). Las pestañas de Avalonia no reaccionan a AXPress: usar clics reales.
+- No pruebes el medidor de tráfico con descargas >100 MB de speed.cloudflare.com: las rechaza.
+- `--demo` con el .app: `open -n ".../Monitor de Conexion.app" --args --demo`.
+
+**Actualizaciones (Velopack + GitHub Releases)**
+- La **API** de GitHub (`api.github.com`, la que usa `GithubSource`) limita a 60 consultas/h por IP
+  sin token. Las **descargas directas** (`github.com/…/releases/latest/download/archivo`) no tienen
+  ese límite (verificado: la API responde `X-RateLimit-Limit: 60`, la descarga no). Por eso
+  `UpdateService` usa `new UpdateManager(url)` (SimpleWebSource) con la URL de descarga directa.
+  Nunca metas un token de GitHub en la app.
+- `latest/download` sirve los archivos del último release **publicado**. Si alguien está varias
+  versiones atrás, el delta no está ahí y Velopack baja el paquete completo (~70 MB): es normal.
+- Solo se reciben actualizaciones en instalaciones hechas con `Setup.exe`
+  (`UpdateManager.IsInstalled`); corriendo desde `bin\Debug` o la demo no se busca nada.
+- El instalador pesa ~77 MB porque es autocontenido (.NET + WPF no admiten recorte).
 
 **Red y Windows**
 - `PingReply.RoundtripTime` vale **0** para `TtlExpired`: mide con Stopwatch en los pings con TTL.
@@ -173,6 +262,19 @@ La compilación de WPF **solo funciona en Windows**. En Linux solo compilan y se
   contexto. El reinicio completo de mediciones ocurre solo si cambian el router o el adaptador.
 - La MAC del router (SendARP) identifica la red o sede sin pedir permisos. Es la llave recomendada
   para agrupar en Power BI.
+
+**Entorno de Claude (sesión local en la app de escritorio, lo normal desde el 24 sep.)**
+- Se trabaja directo en el PC de Juan: PowerShell 7, `dotnet`, compilación de WPF, pruebas y
+  `build.ps1 -Pack` funcionan. `gh` no está instalado.
+- `git push` funciona con las credenciales que Juan guardó en Git. Si vuelve a fallar con
+  "Invalid username or token", Juan debe ejecutar `git push` en su terminal para iniciar sesión:
+  Claude no ingresa credenciales.
+- `git commit -F -` con un here-string de PowerShell **no** pasa el mensaje: escribe el mensaje en
+  un archivo del scratchpad (UTF-8 sin BOM) y usa `git commit -F archivo`.
+- El filtro de seguridad de la herramienta PowerShell a veces bloquea comandos con `.Replace(...)`
+  sobre XML o rutas; usa la herramienta Edit para cambios de texto.
+- Para ver la app: lanzar `bin\Debug\...\InternetHealthMonitor.exe --demo` y pedir acceso de
+  computer-use a `InternetHealthMonitor.exe` (por nombre de app no la encuentra).
 
 **Entorno de Claude (sesiones en la nube vinculadas a este PC)**
 - En la nube, NuGet está bloqueado y no hay targeting packs de WPF: solo se compila Core con el
@@ -199,36 +301,71 @@ La compilación de WPF **solo funciona en Windows**. En Linux solo compilan y se
   `Assert` propia.
 - `Builders.cs` arma escenarios (`Build.Assess(...)`, `Build.Steady(ms, count, lost, wobble)`).
 - Cubren estadísticas, MOS, cada código de diagnóstico, histéresis, avisos, el motor con red
-  falsa (`FakePinger`…), el historial y la exportación.
+  falsa (`FakePinger`…), el historial (también leído en otra zona horaria), la exportación y el
+  calendario de actualizaciones (`UpdateScheduleTests`). Son 49 en total.
+- El CI de GitHub corre las pruebas en UTC (y con otra cultura regional): una prueba que pasa en el PC puede fallar
+  allí si depende de la zona horaria o la cultura.
 - Cualquier cambio en `Thresholds`, `DiagnosisEngine` o `Messages` debe venir con una prueba del
   escenario. Sobre todo si evita o causa falsas alarmas.
 - En Windows los archivos abiertos quedan bloqueados: cierra los streams y zips antes de borrar
   carpetas temporales en las pruebas.
 
-## Estado y pendientes (sep. 2026)
+## Estado actual (24 sep. 2026)
 
-- v2.0.0 compila en Windows y las 48 pruebas pasan. Verificado en la demo en el PC de Juan (24 sep.):
-  ícono de bandeja (globo + insignia), franja de demo, "Aquí falla", etiqueta "Internet" y el texto
-  "Mejorando… confirmando".
-- La raíz ya quedó limpia: las copias de la v1 se enviaron a la Papelera (siguen en `legacy/`) y el
-  .zip de la v1 está en `legacy/` (ignorado por git). `.github/workflows/build.yml` ya existe; el
-  release de una etiqueta `v*` se crea como borrador.
-- Por revisar: al recuperarse de un Wi-Fi débil, la ventana de mediciones aún guarda las pérdidas
-  viejas y durante ~30 s se culpa al router o al proveedor ("cambio de causa" con la misma
-  gravedad). Se vio en la demo; falta confirmar si pasa con redes reales.
-- Decidido (24 sep.): el feed de actualizaciones es **GitHub Releases** (repo público), con la URL
-  de descarga directa `…/releases/latest/download` (SimpleWebSource, sin la API ni su límite de
-  60/h por IP). `UpdateSchedule` reparte las consultas: 2–20 min al azar al iniciar, ~24 h tras
-  un éxito (guardado en `UserPreferences.LastUpdateCheck`) y espera creciente hasta 8 h si falla.
-  CI sube cada etiqueta `v*` como borrador con `vpk upload github`; Juan lo publica a mano.
-- Decidido: por ahora **sin firma de código**. Azure Artifact Signing público no admite Colombia;
-  la opción futura es un certificado OV con firma en la nube.
-- Decisiones abiertas de Juan:
-  - `supportName`, `supportUrl` y `supportEmail` reales en `defaults.json` (usan Zoho Desk como
-    mesa de ayuda).
-- Ideas a futuro: botones de acción en los avisos (requiere el SDK de Windows / AppNotification),
-  y un tablero de Power BI plantilla sobre los CSV compartidos.
-- Primer instalador generado (24 sep.): `artifacts\releases\InternetHealthMonitor-win-Setup.exe`
-  (77 MB, sin firma, ya con `updateFeedUrl`). Se actualizará solo cuando exista un release publicado.
-- Nada está commiteado todavía: los cambios de la v2 están como pendientes en la rama `dev`.
-  Commitea solo cuando Juan lo pida.
+- **v2.0.0 publicada** en GitHub Releases
+  (https://github.com/jcardila/internet-health-monitor/releases/tag/v2.0.0), con `Setup.exe`,
+  paquete completo y `releases.win.json`. El feed `…/releases/latest/download` responde bien.
+  Esta primera versión no tiene delta (no había release anterior).
+- `main` y `dev` están iguales y subidos. 49 pruebas en verde, en el PC y en CI.
+- Verificado en la demo en el PC de Juan: ícono de bandeja (globo + insignia) en barra clara y
+  oscura, franja de demo, "Aquí falla", etiqueta "Internet" y "Mejorando… confirmando".
+  No se vio en pantalla (solo compila): "sin respuesta" en la latencia durante la fase sin internet.
+- Raíz limpia: las copias de la v1 están solo en `legacy/` (el .zip de la v1 también, ignorado).
+- Decisiones tomadas:
+  - Feed de actualizaciones: GitHub Releases con descarga directa. `UpdateSchedule` reparte las
+    consultas: 2–20 min al azar al iniciar, ~24 h tras un éxito (`UserPreferences.LastUpdateCheck`)
+    y espera creciente de 1 h hasta 8 h si falla. Si se descargó en plena llamada, reintenta
+    instalar cada 30 min.
+  - Sin firma de código por ahora. Azure Artifact Signing con certificado público no admite
+    empresas de Colombia (sep. 2026). La opción futura recomendada es un certificado OV con firma
+    en la nube (SSL.com eSigner o DigiCert KeyLocker) para firmar desde el CI; `build.ps1` ya
+    acepta `-SignParams`.
+
+- **Versión para Mac (29 sep. 2026, sin publicar, 2.1.0)**: probada en el MacBook de Juan (macOS 26,
+  Apple Silicon) en demo y en modo real: salto del proveedor correcto, Wi-Fi con SSID (tras permiso
+  de ubicación), MAC del router, instalación con el .pkg "solo para mí" sin contraseña, arranque al
+  iniciar sesión. Instalada en ~/Applications de Juan. Avisos: por AppleScript (sin firma de Apple).
+
+## Pendientes
+
+**De Juan**
+- Instalar la v2.0.0 en modo real en su PC y usarla unos días; anotar falsas alarmas o textos
+  confusos.
+- Datos de soporte reales en `defaults.json`: `supportName`, `supportUrl` (Zoho Desk) y
+  `supportEmail`. Hoy los pasos sugeridos dicen "soporte TI" sin enlace. Requiere una v2.0.1.
+- Piloto con 5–10 personas de sedes, casa y tiendas (avisarles del clic extra por no estar
+  firmado). Incluir: un equipo con cable, uno con VPN, una red que bloquee el ping y un portátil
+  con Windows 10.
+- Más adelante: decidir la compra del certificado OV antes de repartir a las ~400 personas.
+- Mac: decidir si se paga Apple Developer (99 USD/año) para firmar y notarizar; sin eso los avisos
+  salen por AppleScript y la instalación pide "Abrir de todas formas".
+
+**Técnicos (para Claude)**
+- Revisar con datos reales: al recuperarse de un Wi-Fi débil, la ventana de mediciones aún guarda
+  las pérdidas viejas y durante ~30 s se culpa al router o al proveedor ("cambio de causa" con la
+  misma gravedad). Se vio en la demo. Si pasa en redes reales, corregirlo con una prueba del
+  escenario (p. ej. no cambiar de culpable mientras el eslabón nuevo solo tiene pérdidas antiguas).
+- Probar la primera actualización real: publicar una v2.0.1 y confirmar que un equipo con la
+  v2.0.0 instalada se actualiza solo (delta), sin ícono fantasma y sin interrumpir una llamada.
+- Mac: probar la instalación real con el .pkg de un release (Velopack), la actualización
+  automática a una versión siguiente y la detección de llamadas con una reunión real de Teams.
+- Mac: plantilla de Power BI debe tolerar `connection_type`/`adapter` con nombres de Mac ("Wi-Fi (en0)").
+- Advertencias de análisis de código sin atender (CA1806, CA1001, CA1725, WFO0003): no bloquean,
+  pero conviene limpiarlas algún día.
+
+**Ideas a futuro**
+- Botones de acción en los avisos (requiere el SDK de Windows / AppNotification).
+- Plantilla de Power BI sobre los CSV compartidos (llave recomendada: MAC del router).
+- Canal "piloto" separado del estable (Velopack `--channel`) cuando haya más usuarios.
+
+Commitea solo cuando Juan lo pida.

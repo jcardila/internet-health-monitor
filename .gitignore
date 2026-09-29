@@ -20,3 +20,6 @@ desktop.ini
 # Versión anterior (PowerShell): artefactos generados
 legacy/build/
 legacy/*.zip
+
+# macOS
+.DS_Store

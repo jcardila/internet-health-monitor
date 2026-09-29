@@ -1,0 +1,3 @@
+/* Nombre visible de la app en el Finder, Launchpad y Spotlight */
+"CFBundleDisplayName" = "Monitor de Conexión";
+"CFBundleName" = "Monitor de Conexión";
