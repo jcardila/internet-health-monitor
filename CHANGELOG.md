@@ -3,7 +3,7 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y
 [versionado semántico](https://semver.org/lang/es/).
 
-## [2.1.0] - sin publicar
+## [2.1.0] - 2026-09-29
 
 ### Nuevo
 - **Versión para Mac** (macOS 14 o superior, Apple Silicon e Intel): mismo diagnóstico, textos,
