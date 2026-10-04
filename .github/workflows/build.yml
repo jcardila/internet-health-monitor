@@ -46,11 +46,12 @@ jobs:
       - name: Subir a GitHub Releases (borrador)
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
+        # Nombre del release: "v2.1.1 - Monitor de Conexión" (la etiqueta al principio). Debe ser igual
+        # en el job de Mac, que agrega sus paquetes a este mismo borrador.
         run: |
-          $version = "${{ github.ref_name }}".TrimStart("v")
           vpk upload github --outputDir artifacts/releases `
             --repoUrl "${{ github.server_url }}/${{ github.repository }}" --token "${{ secrets.GITHUB_TOKEN }}" `
-            --tag "${{ github.ref_name }}" --releaseName "Monitor de Conexión $version"
+            --tag "${{ github.ref_name }}" --releaseName "${{ github.ref_name }} - Monitor de Conexión"
 
   mac:
     # Después del de Windows: con una etiqueta, el release ya existe y los paquetes de Mac se agregan a él.
@@ -83,10 +84,9 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           export PATH="$PATH:$HOME/.dotnet/tools"
-          version="${GITHUB_REF_NAME#v}"
           for pair in arm64:osx x64:osx-x64; do
             arch="${pair%%:*}"; channel="${pair#*:}"
             vpk upload github --outputDir "artifacts/releases-mac/$arch" --channel "$channel" --merge \
               --repoUrl "${{ github.server_url }}/${{ github.repository }}" --token "${{ secrets.GITHUB_TOKEN }}" \
-              --tag "${{ github.ref_name }}" --releaseName "Monitor de Conexión $version"
+              --tag "${{ github.ref_name }}" --releaseName "${{ github.ref_name }} - Monitor de Conexión"
           done

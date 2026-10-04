@@ -12,7 +12,8 @@ Como las licencias de Microsoft 365 no incluyen Intune, la app se distribuye con
 
 1. Sube el número de versión en el CHANGELOG y haz commit en `main`.
 2. Crea y sube la etiqueta: `git tag v2.0.1` y `git push origin v2.0.1`.
-3. GitHub Actions prueba, compila, arma el instalador y lo deja como **borrador** en
+3. GitHub Actions prueba, compila, arma el instalador y lo deja como **borrador**, con el nombre
+   "v2.0.1 - Monitor de Conexión", en
    *Releases* (con la actualización delta respecto a la versión anterior).
 4. Revisa el borrador (puedes descargar el `Setup.exe` y probarlo) y pulsa **Publish release**.
    Desde ese momento es el "latest" y los equipos se actualizan solos en las siguientes 24 h.

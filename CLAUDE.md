@@ -101,7 +101,8 @@ dotnet build src/InternetHealth.App                                # WPF tambié
 3. `git tag v2.0.1` y `git push origin v2.0.1`. **Esperar a que el CI de `main` esté en verde
    antes de etiquetar** (la primera vez se etiquetó un commit con una prueba rota).
 4. CI: pruebas → `build.ps1 -Pack -GithubRepo …` (descarga el release anterior para crear el
-   delta) → `vpk upload github` como borrador.
+   delta) → `vpk upload github` como borrador, con nombre "v2.1.1 - Monitor de Conexión" (la
+   etiqueta al principio; el job de Mac usa el mismo nombre con `--merge`).
 5. Juan revisa el borrador y pulsa *Publish release*. Solo entonces llega a los equipos (en ≤ 24 h).
    Los borradores y pre-releases no son "latest" y nunca llegan a nadie.
 6. Verificación rápida tras publicar:
@@ -285,6 +286,10 @@ verificar cambios en Presentation). En la nube (Linux sin NuGet) solo compilan C
 - `git push` funciona con las credenciales que Juan guardó en Git. Si vuelve a fallar con
   "Invalid username or token", Juan debe ejecutar `git push` en su terminal para iniciar sesión:
   Claude no ingresa credenciales.
+- **Antes de `git add -A`, revisa `git status`.** El 4 oct. el índice del PC había quedado con el
+  estado de antes de la 2.1.0 (que se commiteó desde el Mac): un `git add -A` habría borrado la app
+  de Mac del repositorio. Si aparecen cambios preparados ("D ", "MM") que no hiciste, `git reset`
+  (sin `--hard`) realinea el índice con HEAD sin tocar archivos.
 - `git commit -F -` con un here-string de PowerShell **no** pasa el mensaje: escribe el mensaje en
   un archivo del scratchpad (UTF-8 sin BOM) y usa `git commit -F archivo`.
 - El filtro de seguridad de la herramienta PowerShell a veces bloquea comandos con `.Replace(...)`
