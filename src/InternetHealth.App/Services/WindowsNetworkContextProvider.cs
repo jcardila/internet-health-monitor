@@ -20,6 +20,7 @@ internal sealed class WindowsNetworkContextProvider : BasicNetworkContextProvide
     private DateTimeOffset _macAttempt;
     private WifiInfo? _lastWifi;
     private string? _lastWifiAdapter;
+    private IPAddress? _lastWifiGateway;
 
     protected override int? PreferredInterfaceIndex()
     {
@@ -38,13 +39,40 @@ internal sealed class WindowsNetworkContextProvider : BasicNetworkContextProvide
             WifiInfo? wifi = null;
             if (ctx.LinkType == LinkType.WiFi)
             {
-                if (includeWifiDetails || _lastWifiAdapter != ctx.AdapterId)
+                // Lectura liviana (señal y canal): no usa la ubicación, se hace en cada llamada.
+                (int? rssi, int? channel) = (null, null);
+                // (También funciona sin el permiso de ubicación: así la señal se ve aunque falte.)
+                if (!includeWifiDetails && _lastWifi is not null && _lastWifiAdapter == ctx.AdapterId)
+                {
+                    try { (rssi, channel) = _wlan.QuerySignal(ctx.AdapterId); } catch { /* ignorar */ }
+                }
+
+                // Lectura completa (nombre de la red, punto de acceso): cuenta como uso de ubicación.
+                // Solo si el motor la pide, si cambió el adaptador o si cambió el canal (el equipo
+                // probablemente se pasó a otro punto de acceso).
+                bool full = includeWifiDetails || _lastWifi is null || _lastWifiAdapter != ctx.AdapterId
+                    || !Equals(_lastWifiGateway, ctx.Gateway)
+                    || (channel is int ch && _lastWifi.Channel is int lastCh && ch != lastCh);
+                if (full)
                 {
                     try { wifi = _wlan.Query(ctx.AdapterId); } catch { wifi = null; }
                     _lastWifi = wifi;
                     _lastWifiAdapter = ctx.AdapterId;
+                    _lastWifiGateway = ctx.Gateway;
                 }
-                else wifi = _lastWifi;
+                else
+                {
+                    // Velocidades null: se usa la del adaptador (LinkSpeedMbps), que está al día.
+                    wifi = _lastWifi! with
+                    {
+                        RssiDbm = rssi ?? _lastWifi!.RssiDbm,
+                        SignalQuality = rssi is int r ? WifiInfo.QualityFromRssi(r) : _lastWifi!.SignalQuality,
+                        Channel = channel ?? _lastWifi!.Channel,
+                        Band = _lastWifi!.Band ?? WlanClient.Band(null, channel, null),
+                        RxRateMbps = null,
+                        TxRateMbps = null,
+                    };
+                }
             }
             return ctx with { GatewayMac = mac, Wifi = wifi };
         }

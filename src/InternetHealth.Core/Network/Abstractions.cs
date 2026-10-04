@@ -36,7 +36,10 @@ public interface ITcpProber
 
 public interface INetworkContextProvider
 {
-    /// <param name="includeWifiDetails">Si es false, puede reutilizar el último dato de Wi-Fi (más barato).</param>
+    /// <param name="includeWifiDetails">
+    /// true: lectura completa del Wi-Fi (nombre de la red, punto de acceso), que en Windows cuenta como
+    /// uso de ubicación. false: basta con refrescar lo que no la usa (señal, canal) y reutilizar el resto.
+    /// </param>
     NetworkContext GetContext(bool includeWifiDetails);
 }
 

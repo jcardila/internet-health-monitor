@@ -39,13 +39,13 @@ internal sealed class MacNetworkContextProvider : BasicNetworkContextProvider
             WifiInfo? wifi = null;
             if (ctx.LinkType == LinkType.WiFi)
             {
-                if (includeWifiDetails || _lastWifiAdapter != ctx.AdapterId)
+                // En Mac se lee siempre: el motor pide la lectura completa solo cada 30 min (pensado para
+                // Windows, donde cuenta como uso de ubicación) y aquí la señal debe seguir al día.
                 {
                     try { wifi = _wlan.Query(ctx.AdapterId); } catch { wifi = null; }
                     _lastWifi = wifi;
                     _lastWifiAdapter = ctx.AdapterId;
                 }
-                else wifi = _lastWifi;
             }
             return ctx with { GatewayMac = mac, Wifi = wifi, AdapterName = adapter };
         }

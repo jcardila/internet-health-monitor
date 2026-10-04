@@ -83,9 +83,22 @@ public sealed class MonitorEngine : IAsyncDisposable
     public bool UiVisible
     {
         get => _uiVisible;
-        set { _uiVisible = value; if (value) Wake(); }
+        set
+        {
+            if (value && !_uiVisible) _wifiDetailsWanted = true; // al abrir: nombre de la red al día
+            _uiVisible = value;
+            if (value) Wake();
+        }
     }
     private volatile bool _uiVisible;
+    private volatile bool _wifiDetailsWanted;
+    private DateTimeOffset _lastWifiDetails;
+
+    /// <summary>
+    /// Cada cuánto se releen los datos del Wi-Fi que Windows trata como "uso de ubicación" (nombre de
+    /// la red, punto de acceso). La señal y el canal se leen en cada ronda sin usar la ubicación.
+    /// </summary>
+    public static readonly TimeSpan WifiDetailsInterval = TimeSpan.FromMinutes(30);
 
     public bool CallDetectionEnabled { get; set; } = true;
     public bool DetailedLog { get; set; }
@@ -203,7 +216,9 @@ public sealed class MonitorEngine : IAsyncDisposable
         _captive = null; _lastCaptive = default; _lastTcp = default; _heavySince = null;
         lock (_stateGate) _tracker.Reset(now);
 
-        _ctx = SafeGetContext(includeWifi: true);
+        // Sin forzar la lectura completa del Wi-Fi: el proveedor la hace solo si cambió el router,
+        // el adaptador o el canal. Un "parpadeo" de la red (cambio de IPv6, VPN) no la necesita.
+        _ctx = SafeGetContext(includeWifi: false);
         _lastContext = now;
         Log.Add(now, DescribeContext(_ctx));
 
@@ -260,11 +275,16 @@ public sealed class MonitorEngine : IAsyncDisposable
         var now = _deps.Clock.Now;
         bool active = IsActive(now);
 
-        // Contexto (Wi-Fi, adaptador): cada 5 s en modo activo, 15 s en reposo.
+        // Contexto (Wi-Fi, adaptador): cada 5 s en modo activo, 15 s en reposo. Los datos del Wi-Fi
+        // que usan la ubicación solo se piden al abrir la ventana o cada 30 min (y el proveedor los
+        // relee solo si cambia el adaptador o el canal): así el ícono de ubicación no parpadea.
         if (now - _lastContext >= TimeSpan.FromSeconds(active ? 5 : 15))
         {
-            var ctx = SafeGetContext(includeWifi: true);
+            if (_lastWifiDetails == default) _lastWifiDetails = now; // el primer dato lo trae el proveedor
+            bool details = _wifiDetailsWanted || now - _lastWifiDetails >= WifiDetailsInterval;
+            var ctx = SafeGetContext(includeWifi: details);
             _lastContext = now;
+            if (details) { _lastWifiDetails = now; _wifiDetailsWanted = false; }
             if (!Equals(ctx.Gateway, _ctx.Gateway) || ctx.AdapterId != _ctx.AdapterId || ctx.HasConnection != _ctx.HasConnection)
             {
                 _ctx = ctx;

@@ -3,6 +3,21 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y
 [versionado semántico](https://semver.org/lang/es/).
 
+## [2.1.1] - 2026-10-04
+
+### Corregido
+- Windows: el ícono de "ubicación en uso" ya no aparece y desaparece cada pocos segundos. La señal y
+  el canal del Wi-Fi se leen con consultas que Windows no cuenta como uso de ubicación; el nombre de
+  la red y el punto de acceso (que sí la usan) solo se releen al iniciar, al abrir la ventana, al
+  cambiar de red, router o canal, y cada 30 minutos. Medido en un equipo real: de ~240 usos por hora
+  a 1 al iniciar.
+- Windows: la señal del Wi-Fi se sigue viendo aunque no esté concedido el permiso de ubicación.
+
+### Cambiado
+- Windows: el % de señal se calcula desde el RSSI (-100 dBm = 0 %, -50 dBm = 100 %), igual que en
+  Mac. Es algo más exigente que el % que daba Windows: "aceptable" desde -72 dBm, "mala" por debajo
+  de -82 dBm.
+
 ## [2.1.0] - 2026-09-29
 
 ### Nuevo

@@ -66,33 +66,49 @@ internal sealed class WlanClient : IDisposable
             WlanFreeMemory(data);
         }
 
-        int? channel = QueryInt(guid, WLAN_OPCODE_CHANNEL_NUMBER);
-        int? rssi = QueryInt(guid, WLAN_OPCODE_RSSI);
-        if (rssi is < -110 or > -5) rssi = null;
+        var (rssi, channel) = QuerySignal(guid);
         var (freqKhz, bssRssi) = QueryBss(guid, bssidBytes);
         rssi ??= bssRssi;
 
-        string? band = freqKhz switch
-        {
-            >= 2_400_000 and < 2_500_000 => "2.4 GHz",
-            >= 4_900_000 and < 5_925_000 => "5 GHz",
-            >= 5_925_000 and < 7_200_000 => "6 GHz",
-            _ => channel switch
-            {
-                >= 1 and <= 14 when phy is null || !(phy.Contains("6E") || phy.Contains("7")) => "2.4 GHz",
-                >= 32 and <= 177 => "5 GHz",
-                _ => null,
-            },
-        };
-
         return new WifiInfo(
             ssid, bssid,
-            signal is >= 0 and <= 100 ? signal : null,
+            // Misma escala que la lectura liviana, para que el % no salte entre una y otra.
+            rssi is int r ? WifiInfo.QualityFromRssi(r) : signal is >= 0 and <= 100 ? signal : null,
             rssi,
             rx > 0 ? rx : null,
             tx > 0 ? tx : null,
-            band, channel, phy, LocationPermissionMissing: false);
+            Band(freqKhz, channel, phy), channel, phy, LocationPermissionMissing: false);
     }
+
+    /// <summary>
+    /// Lectura liviana: RSSI y canal. Verificado en Windows 11 24H2 (oct. 2026): estas dos consultas
+    /// NO cuentan como uso de ubicación; la conexión actual (SSID/BSSID) y la lista BSS sí.
+    /// </summary>
+    public (int? RssiDbm, int? Channel) QuerySignal(string? adapterId)
+    {
+        if (_unavailable || _handle == IntPtr.Zero || adapterId is null || !Guid.TryParse(adapterId, out var guid)) return (null, null);
+        return QuerySignal(guid);
+    }
+
+    private (int? RssiDbm, int? Channel) QuerySignal(Guid guid)
+    {
+        int? rssi = QueryInt(guid, WLAN_OPCODE_RSSI);
+        if (rssi is < -110 or > -5) rssi = null;
+        return (rssi, QueryInt(guid, WLAN_OPCODE_CHANNEL_NUMBER));
+    }
+
+    public static string? Band(int? freqKhz, int? channel, string? phy) => freqKhz switch
+    {
+        >= 2_400_000 and < 2_500_000 => "2.4 GHz",
+        >= 4_900_000 and < 5_925_000 => "5 GHz",
+        >= 5_925_000 and < 7_200_000 => "6 GHz",
+        _ => channel switch
+        {
+            >= 1 and <= 14 when phy is null || !(phy.Contains("6E") || phy.Contains('7')) => "2.4 GHz",
+            >= 32 and <= 177 => "5 GHz",
+            _ => null,
+        },
+    };
 
     private int? QueryInt(Guid guid, uint opcode)
     {

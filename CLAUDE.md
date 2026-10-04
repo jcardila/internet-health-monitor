@@ -258,6 +258,22 @@ verificar cambios en Presentation). En la nube (Linux sin NuGet) solo compilan C
 - En **Windows 11 24H2** la Native Wifi API devuelve `ERROR_ACCESS_DENIED` si no está permitido el
   acceso de apps de escritorio a la ubicación. La app degrada con gracia: usa la velocidad del
   enlace y muestra una pista para activar el permiso.
+- **Wi-Fi y el ícono de "ubicación en uso" (Windows 11 24H2)**: verificado leyendo
+  `HKCU\...\CapabilityAccessManager\ConsentStore\location\NonPackaged\<ruta del exe>`
+  (`LastUsedTimeStart`). Cuentan como uso de ubicación: `WlanQueryInterface` con
+  `CURRENT_CONNECTION` (SSID/BSSID) y `WlanGetNetworkBssList`. **No** cuentan: `WlanQueryInterface`
+  con RSSI o canal, la velocidad del adaptador y `GetSignalBars` de WinRT. Por eso la señal se lee
+  en cada ronda (RSSI → % con `WifiInfo.QualityFromRssi`) y la lectura completa solo al abrir la
+  ventana, cada 30 min (`MonitorEngine.WifiDetailsInterval`) o si el proveedor ve otro router,
+  adaptador o canal. Antes (≤ 2.1.0) se leía todo cada 5–15 s y el ícono parpadeaba: ~240 usos/h.
+  Para medir un cambio: correr el exe de `bin\Debug` con `--background` y contar cambios de esa
+  clave del registro.
+- Un "parpadeo" de la red (cambio de IPv6/VPN) puede hacer desaparecer el router un instante y
+  provocar un reinicio de mediciones: los reinicios no deben forzar lecturas costosas o con permisos.
+- La app **no** impide la suspensión: no usa `SetThreadExecutionState` ni solicitudes de energía
+  (revisado el 4 oct. tras sospecha de Juan). Para diagnosticar "el portátil ya no entra en
+  reposo": `powercfg /requests` (requiere administrador) y los eventos Kernel-Power 506/507 del
+  registro System (entrada y salida del reposo moderno, S0).
 - `NetworkChange.NetworkAddressChanged` se dispara muy seguido (IPv6, VPN): solo pide releer el
   contexto. El reinicio completo de mediciones ocurre solo si cambian el router o el adaptador.
 - La MAC del router (SendARP) identifica la red o sede sin pedir permisos. Es la llave recomendada
@@ -302,7 +318,8 @@ verificar cambios en Presentation). En la nube (Linux sin NuGet) solo compilan C
 - `Builders.cs` arma escenarios (`Build.Assess(...)`, `Build.Steady(ms, count, lost, wobble)`).
 - Cubren estadísticas, MOS, cada código de diagnóstico, histéresis, avisos, el motor con red
   falsa (`FakePinger`…), el historial (también leído en otra zona horaria), la exportación y el
-  calendario de actualizaciones (`UpdateScheduleTests`). Son 49 en total.
+  calendario de actualizaciones (`UpdateScheduleTests`) y cuándo se leen los datos del Wi-Fi que
+  usan la ubicación. Son 51 en total.
 - El CI de GitHub corre las pruebas en UTC (y con otra cultura regional): una prueba que pasa en el PC puede fallar
   allí si depende de la zona horaria o la cultura.
 - Cualquier cambio en `Thresholds`, `DiagnosisEngine` o `Messages` debe venir con una prueba del
@@ -335,6 +352,13 @@ verificar cambios en Presentation). En la nube (Linux sin NuGet) solo compilan C
   Apple Silicon) en demo y en modo real: salto del proveedor correcto, Wi-Fi con SSID (tras permiso
   de ubicación), MAC del router, instalación con el .pkg "solo para mí" sin contraseña, arranque al
   iniciar sesión. Instalada en ~/Applications de Juan. Avisos: por AppleScript (sin firma de Apple).
+
+- **2.1.1 (4 oct. 2026, lista, sin publicar)**: corrige el ícono de ubicación que parpadeaba en
+  Windows. Medido en el PC de Juan con la red real: 1 uso de ubicación al iniciar y ninguno en los
+  4 minutos siguientes (antes ~16 en ese tiempo). Mac sin cambios de comportamiento.
+- Investigado (4 oct.): el portátil de Juan dejó de entrar en reposo desde el reinicio del 30 sep.
+  La app no lo impide (ver "Red y Windows"). Su plan Balanced tiene suspensión e hibernación en
+  "Nunca" con cargador. Falta que Juan ejecute `powercfg /requests` como administrador.
 
 ## Pendientes
 

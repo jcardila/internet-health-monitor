@@ -14,7 +14,15 @@ public sealed record WifiInfo(
     string? Band,           // "2.4 GHz", "5 GHz", "6 GHz"
     int? Channel,
     string? PhyType,        // "Wi-Fi 6 (802.11ax)", etc.
-    bool LocationPermissionMissing);
+    bool LocationPermissionMissing)
+{
+    /// <summary>
+    /// Calidad de señal (0–100 %) a partir del RSSI: lineal entre -100 dBm (0 %) y -50 dBm (100 %),
+    /// la misma escala que documenta Windows y que usa la versión de Mac. Con los umbrales de
+    /// <c>Thresholds</c>: aceptable desde -72 dBm, mala por debajo de -82 dBm.
+    /// </summary>
+    public static int QualityFromRssi(int rssiDbm) => Math.Clamp(2 * (rssiDbm + 100), 0, 100);
+}
 
 /// <summary>Fotografía del entorno de red del equipo en un momento dado.</summary>
 public sealed record NetworkContext(

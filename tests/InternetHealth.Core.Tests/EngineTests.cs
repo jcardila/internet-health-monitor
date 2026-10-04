@@ -38,7 +38,15 @@ internal sealed class FakeTcp : ITcpProber
 internal sealed class FakeNetwork(NetworkContext ctx) : INetworkContextProvider
 {
     public NetworkContext Context { get; set; } = ctx;
-    public NetworkContext GetContext(bool includeWifiDetails) => Context;
+    public int Calls { get; private set; }
+    public int DetailCalls { get; private set; }
+
+    public NetworkContext GetContext(bool includeWifiDetails)
+    {
+        Calls++;
+        if (includeWifiDetails) DetailCalls++;
+        return Context;
+    }
 }
 
 internal sealed class FakeCaptive : ICaptivePortalChecker
@@ -60,7 +68,10 @@ public class EngineTests
 {
     private static readonly IPAddress Isp = IPAddress.Parse("181.49.1.1");
 
-    private static (MonitorEngine Engine, FakeClock Clock, FakePinger Pinger, FakeTcp Tcp, AppPaths Paths) Create(bool inCall = false)
+    private static (MonitorEngine Engine, FakeClock Clock, FakePinger Pinger, FakeTcp Tcp, AppPaths Paths) Create(bool inCall = false) =>
+        Create(new FakeNetwork(Build.Wifi()), inCall);
+
+    private static (MonitorEngine Engine, FakeClock Clock, FakePinger Pinger, FakeTcp Tcp, AppPaths Paths) Create(FakeNetwork network, bool inCall = false)
     {
         var clock = new FakeClock(Build.T0);
         var pinger = new FakePinger();
@@ -74,7 +85,7 @@ public class EngineTests
         {
             Pinger = pinger,
             TcpProber = tcp,
-            Network = new FakeNetwork(Build.Wifi()),
+            Network = network,
             CaptivePortal = new FakeCaptive(),
             Throughput = new FakeThroughput(),
             CallDetector = new FakeCall(inCall),
@@ -174,6 +185,47 @@ public class EngineTests
         Assert.True(rows[0].Minute >= Build.T0 && rows[0].Minute <= Build.T0.AddMinutes(3), $"minuto {rows[0].Minute}");
         await e.DisposeAsync();
         Directory.Delete(paths.DataRoot, true);
+    }
+
+    [Test]
+    public async Task Wifi_details_that_use_location_are_read_rarely()
+    {
+        // En Windows 11 24H2 leer el SSID/BSSID cuenta como uso de ubicación: el ícono de
+        // ubicación parpadeaba cada 15 s. El motor solo las pide al abrir la ventana y cada 30 min;
+        // al iniciar, tras un reinicio o si cambia la red, decide el proveedor (router/adaptador/canal).
+        var net = new FakeNetwork(Build.Wifi());
+        var (e, clock, _, _, _) = Create(net);
+        await Rounds(e, clock, 20 * 60); // 20 min
+        Assert.Equal(0, net.DetailCalls);
+        Assert.True(net.Calls > 50, $"la señal se sigue leyendo seguido ({net.Calls} lecturas)");
+
+        e.RequestReset("prueba: parpadeo de la red", TimeSpan.Zero);
+        await Rounds(e, clock, 30);
+        Assert.Equal(0, net.DetailCalls);
+
+        e.UiVisible = true; // abrir la ventana: datos al día una vez, no en cada ronda
+        await Rounds(e, clock, 60);
+        Assert.Equal(1, net.DetailCalls);
+
+        e.UiVisible = false;
+        await Rounds(e, clock, 31 * 60);
+        Assert.Equal(2, net.DetailCalls); // repaso cada 30 min
+    }
+
+    [Test]
+    public void Wifi_quality_from_rssi_keeps_thresholds_sensible()
+    {
+        Assert.Equal(84, Network.WifiInfo.QualityFromRssi(-58));
+        Assert.Equal(0, Network.WifiInfo.QualityFromRssi(-110));
+        Assert.Equal(100, Network.WifiInfo.QualityFromRssi(-40));
+        Health At(int rssi) => Thresholds.Link(Build.Wifi() with
+        {
+            Wifi = Build.Wifi().Wifi! with { SignalQuality = Network.WifiInfo.QualityFromRssi(rssi), RxRateMbps = 300 },
+        });
+        Assert.Equal(Health.Good, At(-60));  // señal normal de oficina
+        Assert.Equal(Health.Good, At(-70));  // recomendación de voz: -67 a -70 dBm
+        Assert.Equal(Health.Fair, At(-78));
+        Assert.Equal(Health.Poor, At(-85));
     }
 
     [Test]
